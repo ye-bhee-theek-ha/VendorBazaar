@@ -3,17 +3,13 @@ import React from "react";
 import { Stack } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
 import { Redirect } from "expo-router";
+import LoadingScreen from "@/src/screens/LoadingScreen";
 
 export default function AuthLayout() {
   const { user, initialAuthLoading } = useAuth();
 
   if (initialAuthLoading) {
-    return null; // Or a loading spinner, Splash screen should cover this
-  }
-
-  if (user) {
-    // TODO: Redirect to the appropriate home page based on user role
-    return <Redirect href="/(customer)/home" />;
+    return <LoadingScreen />;
   }
 
   return (

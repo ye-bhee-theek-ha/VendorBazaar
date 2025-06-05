@@ -14,6 +14,7 @@ import {
   signOut as firebaseSignOut,
   signInWithEmailAndPassword,
   deleteUser,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 
 import { auth, db } from "../lib/firebase";
@@ -32,7 +33,7 @@ interface AuthContextType {
     fullName: string
   ) => Promise<User | null>;
   signOut: () => Promise<void>;
-  sendPasswordResetEmail: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,7 +63,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               ...firebaseUser,
               fullName: userData.fullName,
               role: userData.role,
-              OnboardingCompleted: userData.OnboardingCompleted || false,
+              OnboardingCompleted: userData.OnboardingCompleted || "false",
             } as AppUser);
           } else {
             console.warn(
@@ -101,57 +102,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboardingGroup = segments[0] === "(onboarding)";
 
-    if (appUser) {
-      if (inAuthGroup || (inOnboardingGroup && appUser.OnboardingCompleted)) {
-        if (appUser.role === "seller") {
-          router.replace("/(seller)/home");
-        } else if (appUser.role === "customer") {
-          router.replace("/(customer)/home");
-        } else {
-          signOut();
-          router.replace("/(auth)/login");
-        }
-      }
-      if (!appUser.OnboardingCompleted) {
-        console.log(
-          "AuthContext: User not onboarded, redirecting to onboarding."
-        );
-        router.replace("/(onboarding)/");
-      } else {
-        console.log(
-          "AuthContext: User exists role: ",
-          appUser.role,
-          " not in auth/onboarding. redirecting to home"
-        );
-        if (appUser.role === "seller") {
-          console.log(
-            "AuthContext: User is a seller, redirecting to seller home."
-          );
-          router.replace("/(seller)/home");
-        } else if (appUser.role === "customer") {
-          router.replace("/(customer)/home");
-        }
-      }
-    } else {
+    if (!appUser) {
       if (!inAuthGroup && !inOnboardingGroup) {
-        console.log(
-          "AuthContext: No user, not in auth/onboarding. Redirecting to login."
-        );
+        console.log("No user. Redirecting to login.");
+        router.replace("/(auth)/login");
+      }
+      return;
+    }
+
+    if (appUser.OnboardingCompleted === "false" && !inOnboardingGroup) {
+      console.log("User not onboarded. Redirecting to onboarding.");
+      router.replace("/(onboarding)");
+      return;
+    }
+
+    const isInPublicGroups = inAuthGroup || inOnboardingGroup;
+    const shouldBeInHome =
+      !(appUser.OnboardingCompleted === "false") && isInPublicGroups;
+
+    if (shouldBeInHome || !isInPublicGroups) {
+      if (appUser.role === "seller") {
+        console.log("Redirecting seller to home.");
+        router.replace("/(seller)/home");
+      } else if (appUser.role === "customer") {
+        console.log("Redirecting customer to home.");
+        router.replace("/(customer)/home");
+      } else {
+        console.log("Unknown role. Signing out.");
+        signOut();
         router.replace("/(auth)/login");
       }
     }
 
     console.log("AuthContext Navigation Check:");
-
     console.log("Current user:", user ? user.uid : "No user");
-    console.log("App user Onboarding:", appUser?.OnboardingCompleted);
+    console.log("App user Onboarding:", appUser.OnboardingCompleted);
     console.log("Initial loading:", initialAuthLoading);
     console.log("Loading state:", loading);
-    console.log("inAuthGroup:", segments[0] === "(auth)");
-    console.log("inOnboardingGroup:", segments[0] === "(onboarding)");
+    console.log("inAuthGroup:", inAuthGroup);
+    console.log("inOnboardingGroup:", inOnboardingGroup);
     console.log("Current segments:", segments);
     console.log("----------------------------------------");
-  }, [appUser, segments, initialAuthLoading, router]);
+  }, [appUser, segments, initialAuthLoading, loading, router]);
 
   const signIn = async (email: string, pass: string): Promise<User | null> => {
     setLoading(true);
@@ -192,7 +184,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         email: newUser.email,
         fullName: fullName,
         role: "customer",
-        OnboardingCompleted: false,
+        OnboardingCompleted: "false",
 
         // onboarding feilds
         address: [],
@@ -228,10 +220,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const sendPasswordResetEmail = async (emailAddress: string) => {
+  const resetPassword = async (emailAddress: string) => {
     setLoading(true);
     try {
-      await sendPasswordResetEmail(emailAddress);
+      await sendPasswordResetEmail(auth, emailAddress);
     } catch (error) {
       console.error("Send password reset email error:", error);
       throw error;
@@ -239,6 +231,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       setLoading(false);
     }
   };
+
+  const ReFetchUser = async () => {};
 
   return (
     <AuthContext.Provider
@@ -249,7 +243,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         signIn,
         signUp,
         signOut,
-        sendPasswordResetEmail,
+        resetPassword,
       }}
     >
       {children}

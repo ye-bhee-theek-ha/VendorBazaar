@@ -16,15 +16,12 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
-
-import { useColorScheme } from "@/src/components/useColorScheme";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
-import { Text, View } from "../src/components/Themed";
-import { ActivityIndicator } from "react-native";
 
 import "@/global.css";
+import LoadingScreen from "@/src/screens/LoadingScreen";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -40,18 +37,9 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 const AppFonts = {
-  AlbertSans: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  AlbertSans: require("../assets/fonts/AlbertSans-Variable.ttf"),
   ...FontAwesome.font,
 };
-
-function InitialLoadingScreen() {
-  return (
-    <View className="flex flex-1 justify-center items-center bg-white">
-      <ActivityIndicator size="large" color="#0B6623" />
-      <Text className="text-heading mt-3 text-primary ">Loading App...</Text>
-    </View>
-  );
-}
 
 function RootLayoutNav() {
   const { user, initialAuthLoading } = useAuth();
@@ -72,13 +60,8 @@ function RootLayoutNav() {
     }
   }, [initialAuthLoading]);
 
-  if (initialAuthLoading) {
-    return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text className="mt-2 text-gray-600">Loading App...</Text>
-      </View>
-    );
+  if (!fontsLoaded || initialAuthLoading) {
+    return <LoadingScreen />;
   }
 
   return (
@@ -93,26 +76,6 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    AlbertSans: require("../assets/fonts/SpaceMono-Regular.ttf"),
-    ...FontAwesome.font,
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

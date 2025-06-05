@@ -11,23 +11,39 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import { db } from "@/src/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { useAuth } from "@/src/context/AuthContext";
 
 const onboardingIllustration = require("../../assets/images/auth/onboardingIllustration.webp");
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
+  const { user } = useAuth();
 
   const handleProceed = async () => {
-    setLoading(true);
-    try {
-      router.push("/(onboarding)/from");
-    } catch (e) {
-      console.error("OnboardingScreen: Failed to save onboarding status", e);
-      router.replace("/(auth)/signup");
-    } finally {
-      setLoading(false);
-    }
+    // setLoading(true);
+    // if (!user || !user.uid) {
+    //   console.error("OnboardingScreen: User is not authenticated");
+    //   router.replace("/(auth)/signup");
+    // }
+    // const userDocRef = doc(db, "users", user?.uid || "");
+    // await setDoc(
+    //   userDocRef,
+    //   {
+    //     OnboardingCompleted: "true",
+    //   },
+    //   { merge: true }
+    // );
+    // try {
+    //   router.replace("/(customer)/home");
+    // } catch (e) {
+    //   console.error("OnboardingScreen: Failed to save onboarding status", e);
+    //   router.replace("/(auth)/signup");
+    // } finally {
+    //   setLoading(false);
+    // }
   };
 
   return (
@@ -54,7 +70,7 @@ export default function OnboardingScreen() {
           <TouchableOpacity
             onPress={handleProceed}
             className={`w-[90%] py-3.5 rounded-lg items-center justify-center shadow-md mb-2 ${
-              loading ? "bg-green-400" : "bg-primary"
+              loading ? "bg-primary-dark" : "bg-primary"
             }`}
             disabled={loading}
           >
@@ -69,11 +85,6 @@ export default function OnboardingScreen() {
               </View>
             )}
           </TouchableOpacity>
-          <Text className="text-small text-gray-400 text-center ">
-            By continuing, you agree to the Marketplace{" "}
-            <Text className="text-primary">Terms of Agreement</Text>
-            and acknowledge the Privacy Policy.
-          </Text>
         </View>
       </View>
     </SafeAreaView>

@@ -8,10 +8,13 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                "primary": "#OB6623"
+                "primary": "#0b6623",
+                "primary-dark": "#0b6649"
+
+
             },
             fontSize: {
-                "hero": "30px",
+                "hero": "40px",
                 "heading": "24px",
                 'text': '20px',
                 "btn_title": "18px",

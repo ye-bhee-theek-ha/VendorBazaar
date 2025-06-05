@@ -3,7 +3,7 @@ import { User } from "firebase/auth";
 export interface AppUser extends User {
   fullName?: string;
   role?: "customer" | "seller";
-  OnboardingCompleted: boolean;
+  OnboardingCompleted: string;
 
   address: [
     {
