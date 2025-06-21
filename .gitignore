@@ -24,6 +24,9 @@ android/
 # Metro
 .metro-health-check*
 
+google-services.json
+GoogleService-Info.plist
+
 # debug
 npm-debug.*
 yarn-debug.*
