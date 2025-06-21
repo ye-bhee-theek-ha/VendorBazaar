@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>817629834864-jv6kch5ul4n9m52l8bef5sfof9pjdo2e.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.817629834864-jv6kch5ul4n9m52l8bef5sfof9pjdo2e</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDhvM_svEizV1FRnBgN_Ua-eJI0CyxYXPk</string>
+	<key>GCM_SENDER_ID</key>
+	<string>817629834864</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.aleeabdullah.SafeBuyAfrica</string>
+	<key>PROJECT_ID</key>
+	<string>safebuyafrica-a4d6f</string>
+	<key>STORAGE_BUCKET</key>
+	<string>safebuyafrica-a4d6f.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:817629834864:ios:eff92be83426eded264eb5</string>
+</dict>
+</plist>

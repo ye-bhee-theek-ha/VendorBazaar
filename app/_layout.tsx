@@ -1,18 +1,9 @@
 // app/_layout.tsx
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import {
-  Stack,
-  useRouter,
-  useRootNavigationState,
-  useSegments,
-} from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
+
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
@@ -21,7 +12,16 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 
 import "@/global.css";
+
 import LoadingScreen from "@/src/screens/LoadingScreen";
+
+import { ProductProvider } from "@/src/context/ProductContext";
+import { NotificationProvider } from "@/src/context/NotificationContext";
+import { TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { SearchProvider } from "@/src/context/SearchContext";
+import { CartProvider } from "@/src/context/CartContext";
+import { OrderProvider } from "@/src/context/OrderContext";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -70,6 +70,21 @@ function RootLayoutNav() {
       <Stack.Screen name="(customer)" />
       <Stack.Screen name="(seller)" />
       <Stack.Screen name="(onboarding)" />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          presentation: "modal",
+          headerShown: true,
+          title: "Notifications",
+          headerTitleAlign: "center",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} className="ml-4">
+              <Ionicons name="close" size={28} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
@@ -80,7 +95,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <RootLayoutNav />
+          <ProductProvider>
+            <NotificationProvider>
+              <SearchProvider>
+                <CartProvider>
+                  <OrderProvider>
+                    <RootLayoutNav />
+                  </OrderProvider>
+                </CartProvider>
+              </SearchProvider>
+            </NotificationProvider>
+          </ProductProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

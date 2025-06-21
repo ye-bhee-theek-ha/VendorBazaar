@@ -36,7 +36,7 @@ export default function ChatListScreen() {
         renderItem={({ item }) => (
           <Link
             href={{
-              pathname: `/(tabs)/home/messaging/[chatId]`,
+              pathname: `/(customer)/home/messaging/[chatId]`,
               params: { chatId: item.id },
             }}
             asChild

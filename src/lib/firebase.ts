@@ -1,25 +1,33 @@
 // src/lib/firebase.ts
 
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-import { initializeApp } from "firebase/app";
+import { getApps, initializeApp } from "firebase/app";
 //@ts-ignore
 import { getReactNativePersistence, initializeAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import Constants from "expo-constants";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBbCsMitrwPaeDJna_ZDzxES_MQGBKyM4A",
-  authDomain: "vendorbazarr-6bfc5.firebaseapp.com",
-  projectId: "vendorbazarr-6bfc5",
-  storageBucket: "vendorbazarr-6bfc5.firebasestorage.app",
-  messagingSenderId: "902077437711",
-  appId: "1:902077437711:web:063295292a7ca564f6507a",
-};
+const firebaseConfig = Constants.expoConfig?.web?.config?.firebase;
 
-const app = initializeApp(firebaseConfig);
+let app;
+if (firebaseConfig) {
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+} else {
+  // Handle the case where firebaseConfig is undefined, e.g., throw an error or log a warning.
+  console.error(
+    "Firebase config is not defined. Please check your expo-constants setup."
+  );
+  // Or throw new Error("Firebase config is not defined.");
+}
 
-export const auth = initializeAuth(app, {
+export const auth = initializeAuth(app!, {
+  // Added non-null assertion operator as app might be undefined if firebaseConfig is not set
   persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const db = getFirestore(app!);
+export const storage = getStorage(app!);

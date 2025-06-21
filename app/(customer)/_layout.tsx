@@ -1,4 +1,4 @@
-// app/(tabs)/_layout.tsx
+// app/(customer)/_layout.tsx
 import React from "react";
 import { Tabs, usePathname, useSegments, Redirect } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"; // Or your preferred icon library
@@ -26,9 +26,6 @@ export default function TabLayout() {
   const pathname = usePathname();
   const segments = useSegments(); // e.g. ['(tabs)', 'home', 'messaging', 'chatId123']
 
-  console.log("first segment:", segments[0]);
-  console.log("second segment:", segments[1]);
-
   if (initialAuthLoading) {
     return null; // Or a loading spinner, Splash screen should cover this
   }
@@ -38,14 +35,8 @@ export default function TabLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Determine if the bottom tab bar should be visible
-  // Hide on specific sub-pages like a chat screen
-  const hideTabBarForRoutes = ["/(tabs)/home/messaging/"];
-
   let isTabBarVisible = true;
-  // Check if the current path starts with any of the paths in hideTabBarForRoutes
-  // For example, if current path is '/(tabs)/home/messaging/chat123'
-  // and hideTabBarForRoutes contains '/(tabs)/home/messaging/', it will hide.
+
   if (
     segments.length > 2 &&
     segments[0] === "(customer)" &&
@@ -72,58 +63,43 @@ export default function TabLayout() {
     } else if (currentSubPage === "messaging") {
       screenTitle = "Messages";
       showHeader = true;
-    } else if (currentSubPage && currentSubPage.startsWith("product")) {
+    } else if (currentSubPage && currentSubPage.startsWith("[pid]")) {
       screenTitle = "Product Details";
       showHeader = true;
-      // isTabBarVisible = false; // Optionally hide tab bar on product details too
+      isTabBarVisible = false;
     } else {
       screenTitle = "Home";
       showHeader = true;
     }
   }
-  //   } else if (currentMainTab === "search") {
-  //     screenTitle = "Search";
-  //     showHeader = true;
-  //   } else if (currentMainTab === "saved") {
-  //     screenTitle = "Saved Items";
-  //     showHeader = true;
-  //   } else if (currentMainTab === "cart") {
-  //     screenTitle = "My Cart";
-  //     showHeader = true;
-  //   } else if (currentMainTab === "account") {
-  //     screenTitle = "My Account";
-  //     showHeader = true;
-  //   }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#3b82f6", // Tailwind blue-500
-        tabBarInactiveTintColor: "#6b7280", // Tailwind gray-500
+        tabBarActiveTintColor: "#000000",
+        tabBarInactiveTintColor: "#B3B3B3",
+
         tabBarStyle: {
-          backgroundColor: "#ffffff", // White background
+          backgroundColor: "#ffffff",
           borderTopWidth: 1,
-          borderTopColor: "#e5e7eb", // Tailwind gray-200
-          height: 60,
-          paddingBottom: 5,
-          display: isTabBarVisible ? "flex" : "none", // Conditionally hide tab bar
+          borderTopColor: "#e5e7eb",
+          height: 70,
+          paddingBottom: 15,
+          display: isTabBarVisible ? "flex" : "none",
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "500",
+          color: "black",
         },
         header: (props) => (
-          <CustomHeader
-            title={screenTitle}
-            showHeader={showHeader}
-            {...props}
-          />
+          <CustomHeader title={screenTitle} showHeader={true} {...props} />
         ),
         headerShown: false,
       }}
     >
-      {/* <Tabs.Screen
-        name="home" // This refers to the `app/(tabs)/home/index.tsx` or `app/(tabs)/home/_layout.tsx`
+      <Tabs.Screen
+        name="home"
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -132,7 +108,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search" // `app/(tabs)/search/index.tsx` or `app/(tabs)/search/_layout.tsx`
+        name="search"
         options={{
           title: "Search",
           tabBarIcon: ({ color, size }) => (
@@ -140,6 +116,7 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="saved" // `app/(tabs)/saved/index.tsx` or `app/(tabs)/saved/_layout.tsx`
         options={{
@@ -160,14 +137,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="account" // `app/(tabs)/account/index.tsx` or `app/(tabs)/account/_layout.tsx`
+        name="account"
         options={{
           title: "Account",
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="account-circle" color={color} size={size} />
           ),
         }}
-      /> */}
+      />
     </Tabs>
   );
 }

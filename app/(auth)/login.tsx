@@ -20,7 +20,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, loading } = useAuth();
+  const { signIn, signInWithGoogle, loading } = useAuth();
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -57,6 +57,15 @@ export default function LoginScreen() {
         }
       }
       Alert.alert("Login Failed", errorMessage);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // The context itself handles most errors, but you can add more here if needed
+      console.error("Google Sign-In button press error", error);
     }
   };
 
@@ -148,7 +157,10 @@ export default function LoginScreen() {
                 <View className="flex-1 h-px bg-gray-300" />
               </View>
 
-              <TouchableOpacity className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-white border border-gray-300">
+              <TouchableOpacity
+                onPress={handleGoogleSignIn}
+                className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-white border border-gray-300"
+              >
                 <Ionicons name="logo-google" size={22} className="mr-2.5" />
                 <Text className="text-gray-800 text-medium font-medium font-sans">
                   Login with Google

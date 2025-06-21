@@ -1,17 +1,31 @@
 import { User } from "firebase/auth";
+import { Timestamp } from "firebase/firestore";
 
 export interface AppUser extends User {
   fullName?: string;
   role?: "customer" | "seller";
   OnboardingCompleted: string;
 
-  address: [
-    {
-      nickname: string;
-      fullAddress: string;
-      isDefault: boolean;
-    }
-  ];
+  address: Address[];
+
   dob?: Date;
   gender?: "male" | "female";
+  likedProductIds: string[];
+  FollowingSellersIds: string[];
+}
+
+export interface Address {
+  nickname: string;
+  fullAddress: string;
+  isDefault: boolean;
+}
+
+export interface Notification {
+  id: string;
+  type: "discount" | "wallet" | "service" | "card" | "account" | string;
+  title: string;
+  message: string;
+  createdAt: Timestamp;
+  read: boolean;
+  userId: string;
 }

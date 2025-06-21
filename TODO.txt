@@ -1,0 +1,29 @@
+different SHA-1 fingerprints depending on how it's built:
+
+For development in the Expo Go app.
+For development in a custom "development build".
+For your final production/release app built with EAS.
+You need to add the SHA-1 for each environment you test and release with to your Firebase project settings.
+
+
+---------------------------
+
+
+Authorized redirect URIs google auth
+
+
+
+---------------
+
+
+
+
+maybe add discounts
+
+Creating a personalized "For You" feed
+
+------------------
+
+always use serverTimestamp() when creating a new product document
+
+

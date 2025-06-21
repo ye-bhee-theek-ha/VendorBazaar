@@ -14,7 +14,9 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aleeabdullah.SafeBuyAfrica",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,16 +29,38 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.aleeabdullah.VendorBazaar"
+      "package": "com.aleeabdullah.SafeBuyAfrica",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "config": {
+        "firebase": {
+          "apiKey": "AIzaSyBbCsMitrwPaeDJna_ZDzxES_MQGBKyM4A",
+          "authDomain": "vendorbazarr-6bfc5.firebaseapp.com",
+          "projectId": "vendorbazarr-6bfc5",
+          "storageBucket": "vendorbazarr-6bfc5.firebasestorage.app",
+          "messagingSenderId": "902077437711",
+          "appId": "1:902077437711:web:063295292a7ca564f6507a"
+        }
+      }
     },
-    "plugins": ["expo-router", "expo-localization"],
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3488e348-93c5-4ab5-85b9-b6e374d5e64a"
+      }
     }
   }
 }
