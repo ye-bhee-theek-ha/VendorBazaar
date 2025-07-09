@@ -11,7 +11,13 @@ import {
   SafeAreaView,
   RefreshControl,
 } from "react-native";
-import { Stack, useLocalSearchParams, useRouter, Link } from "expo-router";
+import {
+  Stack,
+  useLocalSearchParams,
+  useRouter,
+  Link,
+  router,
+} from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   doc,
@@ -36,6 +42,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
+import { supabase } from "@/src/lib/supabase";
+import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
 
 type ListItem =
   | (Product & { type: "product" })
@@ -162,9 +170,9 @@ export default function SellerProfileScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [lastVisibleProduct, setLastVisibleProduct] =
-    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [productsPage, setProductsPage] = useState(0);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
+
   const [lastVisibleReview, setLastVisibleReview] =
     useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMoreReviews, setHasMoreReviews] = useState(true);
@@ -220,54 +228,39 @@ export default function SellerProfileScreen() {
     async (loadMore = false) => {
       if (!sellerId || (loadMore && (loadingMore || !hasMoreProducts))) return;
 
-      if (loadMore) setLoadingMore(true);
-      else {
+      const pageToFetch = loadMore ? productsPage + 1 : 0;
+      if (loadMore) {
+        setLoadingMore(true);
+      } else {
         setLoadingContent(true);
-        setHasMoreProducts(true);
+        setHasMoreProducts(true); // Reset on initial fetch
       }
 
       try {
-        const productsRef = collection(db, "products");
-        const qConstraints = [
-          where("sellerId", "==", sellerId),
-          orderBy("createdAt", "desc"),
-          limit(PRODUCTS_PER_PAGE),
-        ];
+        const from = pageToFetch * PRODUCTS_PER_PAGE;
+        const to = from + PRODUCTS_PER_PAGE - 1;
 
-        const q =
-          loadMore && lastVisibleProduct
-            ? query(
-                productsRef,
-                ...qConstraints,
-                startAfter(lastVisibleProduct)
-              )
-            : query(productsRef, ...qConstraints);
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("seller_id", sellerId.trim()) // Adjust column name if needed
+          .order("created_at", { ascending: false })
+          .range(from, to);
 
-        const docSnap = await getDocs(q);
-        const newProducts = docSnap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            pid: doc.id,
-            name: data.name as string,
-            category: data.category as string,
-            price: data.price as number,
-            sellerId: data.sellerId as string,
-            sellerName: data.sellerName as string,
-            sellerImgUrl: data.sellerImgUrl as string,
-            totalReviews: data.totalReviews as number,
-            ratingAvg: data.ratingAvg as number,
-            condition: data.condition as String,
-            imagesUrl: data.imagesURL as string[],
-            description: data.description as string,
-            createdAt: data.createdAt as Timestamp,
-          } as Product;
-        }) as Product[];
+        if (error) throw error;
 
-        if (docSnap.docs.length < PRODUCTS_PER_PAGE) setHasMoreProducts(false);
-        setLastVisibleProduct(docSnap.docs[docSnap.docs.length - 1]);
+        const newProducts = data.map(mapSupabaseToProduct);
 
-        if (loadMore) setProducts((prev) => [...prev, ...newProducts]);
-        else setProducts(newProducts);
+        if (newProducts.length < PRODUCTS_PER_PAGE) {
+          setHasMoreProducts(false);
+        }
+
+        if (loadMore) {
+          setProducts((prev) => [...prev, ...newProducts]);
+        } else {
+          setProducts(newProducts);
+        }
+        setProductsPage(pageToFetch);
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -275,7 +268,7 @@ export default function SellerProfileScreen() {
         setLoadingMore(false);
       }
     },
-    [sellerId, loadingMore, hasMoreProducts, lastVisibleProduct]
+    [sellerId, loadingMore, hasMoreProducts, productsPage]
   );
 
   const fetchReviewsCallback = useCallback(
@@ -367,7 +360,18 @@ export default function SellerProfileScreen() {
                 : "Follow"}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity className="flex-1 border border-gray-300 p-3 rounded-lg">
+          <TouchableOpacity
+            className="flex-1 border border-gray-300 p-3 rounded-lg"
+            onPress={() => {
+              router.push({
+                pathname: "/(messages)/chat",
+                params: {
+                  recipientId: seller?.sid,
+                  recipientName: seller?.shopName,
+                },
+              });
+            }}
+          >
             <Text className="text-black text-center font-bold">Message</Text>
           </TouchableOpacity>
         </View>

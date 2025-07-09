@@ -27,8 +27,7 @@ const CartListItem = ({ item }: { item: CartItem }) => {
         <Text className="text-base font-semibold" numberOfLines={1}>
           {item.name}
         </Text>
-        <Text className="text-sm text-gray-500 mb-1">Size L</Text>{" "}
-        {/* This should be a dynamic option later */}
+        <Text className="text-sm text-gray-500 mb-1">Size L</Text>
         <Text className="text-lg font-bold">${item.price.toFixed(2)}</Text>
       </View>
       <View className="items-center">
@@ -59,7 +58,8 @@ const CartListItem = ({ item }: { item: CartItem }) => {
 };
 
 export default function CartScreen() {
-  const { cartItems, loading, error, cartSubtotal } = useCart();
+  const { cartItems, loading, error, cartSubtotal, initiatePayment } =
+    useCart();
   const router = useRouter();
 
   const SHIPPING_FEE = 80.0; // Example shipping fee
@@ -136,7 +136,10 @@ export default function CartScreen() {
                 ${total.toFixed(2)}
               </Text>
             </View>
-            <TouchableOpacity className="bg-black rounded-full p-4 flex-row justify-center items-center">
+            <TouchableOpacity
+              className="bg-black rounded-full p-4 flex-row justify-center items-center"
+              onPress={initiatePayment}
+            >
               <Text className="text-white text-lg font-semibold">
                 Go To Checkout
               </Text>
@@ -153,3 +156,38 @@ export default function CartScreen() {
     </SafeAreaView>
   );
 }
+
+// import React from "react";
+// import { Button, View } from "react-native";
+// import { usePaystack } from "react-native-paystack-webview";
+
+// const Checkout = () => {
+//   const { popup } = usePaystack();
+
+//   const payNow = () => {
+//     popup.checkout({
+//       email: "jane.doe@example.com",
+//       amount: 5000,
+//       reference: "TXN_123456",
+//       invoice_limit: 3,
+//       split: {
+//         type: "percentage",
+//         bearer_type: "account",
+//         subaccounts: [{ subaccount: "ACCT_ukoaf6gyp3icmxj", share: "40" }],
+//       },
+
+//       onSuccess: (res) => console.log("Success:", res),
+//       onCancel: () => console.log("User cancelled"),
+//       onLoad: (res) => console.log("WebView Loaded:", res),
+//       onError: (err) => console.log("WebView Error:", err),
+//     });
+//   };
+
+//   return (
+//     <View className="flex-1 min-h-screen justify-center items-center bg-gray-400">
+//       <Button title="Pay Now" onPress={payNow} />
+//     </View>
+//   );
+// };
+
+// export default Checkout;

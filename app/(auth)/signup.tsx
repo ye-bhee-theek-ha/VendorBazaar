@@ -75,7 +75,7 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView className="bg-white">
+    <SafeAreaView className="bg-white h-full">
       <KeyboardAvoidingView
         className="flex"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -197,7 +197,7 @@ export default function SignupScreen() {
                   Sign Up with Google
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-[#1877F2] border border-[#1877F2]">
+              {/* <TouchableOpacity className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-[#1877F2] border border-[#1877F2]">
                 <Ionicons
                   name="logo-facebook"
                   size={22}
@@ -207,7 +207,7 @@ export default function SignupScreen() {
                 <Text className="text-white text-medium font-medium font-sans">
                   Sign Up with Facebook
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               <View className="mt-6 flex-row justify-center items-center">
                 <Text className="text-gray-500 text-small font-sans">

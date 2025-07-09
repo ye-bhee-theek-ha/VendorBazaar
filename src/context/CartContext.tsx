@@ -1,11 +1,5 @@
 // src/context/CartContext.tsx
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   collection,
   onSnapshot,
@@ -14,21 +8,31 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  getDocs,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
-import { CartItem, Product } from "../constants/types.product";
+import {
+  CartItem,
+  Product,
+  ProductOptionValue,
+} from "../constants/types.product";
+import { usePaystack } from "react-native-paystack-webview";
+import { Alert } from "react-native";
 
 interface CartContextType {
   cartItems: CartItem[];
   loading: boolean;
   error: string | null;
-  addToCart: (product: Product, quantity: number) => Promise<void>;
+  addToCart: (
+    product: Product,
+    quantity: number,
+    selectedOptions: { [key: string]: ProductOptionValue }
+  ) => Promise<void>;
   updateQuantity: (productId: string, newQuantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   cartSubtotal: number;
   totalItems: number;
+  initiatePayment: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -39,6 +43,93 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Initialize Paystack for payment processing
+  const { popup } = usePaystack();
+
+  const paystackConfig = {
+    email: user?.email || "",
+    amount: 100,
+    currency: "NGN",
+    reference: `cart-${Date.now()}`,
+    metadata: {
+      custom_fields: [
+        {
+          display_name: "Cart Items",
+          variable_name: "cart_items",
+          value: JSON.stringify(cartItems),
+        },
+      ],
+    },
+    onSuccess: async (res: any) => {
+      console.log("Payment successful:", res);
+      // Handle successful payment logic here
+    },
+    onCancel: () => {
+      console.log("Payment cancelled");
+      // Handle payment cancellation logic here
+    },
+    onError: (err: any) => {
+      console.error("Payment error:", err);
+      setError("Payment failed. Please try again.");
+    },
+    onload: (res: any) => {
+      console.log("Paystack popup loaded: ", res);
+    },
+  };
+
+  const initiatePayment = () => {
+    if (!user) {
+      Alert.alert(
+        "Authentication Error",
+        "You must be logged in to make a payment."
+      );
+      return;
+    }
+    const SHIPPING_FEE = 80.0;
+    const totalAmount = cartSubtotal + SHIPPING_FEE;
+
+    popup.newTransaction({
+      email: user.email || "",
+      amount: totalAmount * 100,
+      reference: `cart-${Date.now()}`,
+      metadata: {
+        custom_fields: [
+          {
+            display_name: "Cart Items",
+            variable_name: "cart_items",
+            value: JSON.stringify(
+              cartItems.map((item) => ({
+                name: item.name,
+                quantity: item.quantity,
+              }))
+            ),
+          },
+        ],
+      },
+      onSuccess: async (res: any) => {
+        console.log("Payment successful:", res);
+        // TODO: Create order in Firestore, clear cart, etc.
+        Alert.alert("Payment Successful", "Your order has been placed!");
+        // router.replace("/(customer)/home");
+      },
+      onCancel: () => {
+        console.log("Payment cancelled");
+        Alert.alert(
+          "Payment Cancelled",
+          "You have cancelled the payment process."
+        );
+      },
+      onError: (err: any) => {
+        console.error("Payment error:", err);
+        Alert.alert(
+          "Payment Error",
+          "An error occurred during payment. Please try again."
+        );
+      },
+    });
+  };
+
+  // fetch cart items when user changes or mounts
   useEffect(() => {
     if (!user) {
       setCartItems([]);
@@ -69,7 +160,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  const addToCart = async (product: Product, quantity: number) => {
+  const addToCart = async (
+    product: Product,
+    quantity: number,
+    selectedOptions: { [key: string]: ProductOptionValue }
+  ) => {
     if (!user) {
       setError("You must be logged in to add items to the cart.");
       return;
@@ -132,6 +227,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     removeFromCart,
     cartSubtotal,
     totalItems,
+    initiatePayment,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

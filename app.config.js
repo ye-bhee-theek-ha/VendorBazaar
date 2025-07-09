@@ -1,4 +1,6 @@
-{
+import 'dotenv/config';
+
+export default {
   "expo": {
     "name": "VendorBazaar",
     "slug": "VendorBazaar",
@@ -16,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.aleeabdullah.SafeBuyAfrica",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +32,8 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.aleeabdullah.SafeBuyAfrica",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
     },
     "web": {
       "bundler": "metro",
@@ -38,12 +41,12 @@
       "favicon": "./assets/images/favicon.png",
       "config": {
         "firebase": {
-          "apiKey": "AIzaSyBbCsMitrwPaeDJna_ZDzxES_MQGBKyM4A",
-          "authDomain": "vendorbazarr-6bfc5.firebaseapp.com",
-          "projectId": "vendorbazarr-6bfc5",
-          "storageBucket": "vendorbazarr-6bfc5.firebasestorage.app",
-          "messagingSenderId": "902077437711",
-          "appId": "1:902077437711:web:063295292a7ca564f6507a"
+          "apiKey": process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+          "authDomain": process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          "projectId": process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+          "storageBucket": process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          "messagingSenderId": process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+          "appId": process.env.EXPO_PUBLIC_FIREBASE_APP_ID
         }
       }
     },
@@ -51,7 +54,13 @@
       "expo-router",
       "expo-localization",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -63,4 +72,4 @@
       }
     }
   }
-}
+};

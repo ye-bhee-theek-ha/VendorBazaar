@@ -12,10 +12,6 @@ module.exports = {
                 "primary-dark": "#0b6649",
                 "grey": "#808080",
                 "grey-light": "#E6E6E6",
-
-
-
-
             },
             fontSize: {
                 "hero": "40px",

@@ -4,6 +4,12 @@ import { Tabs, usePathname, useSegments, Redirect } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"; // Or your preferred icon library
 import { View, Text } from "react-native";
 import { useAuth } from "../../src/context/AuthContext"; // Adjust path
+import { ProductProvider } from "@/src/context/ProductContext";
+import { OrderProvider } from "@/src/context/OrderContext";
+import { CartProvider } from "@/src/context/CartContext";
+import { SearchProvider } from "@/src/context/SearchContext";
+
+import { PaystackProvider, usePaystack } from "react-native-paystack-webview";
 
 // Example Custom Header (can be moved to components/common/CustomHeader.tsx)
 const CustomHeader = ({
@@ -21,7 +27,7 @@ const CustomHeader = ({
   );
 };
 
-export default function TabLayout() {
+function CustomerTabLayout() {
   const { user, initialAuthLoading } = useAuth();
   const pathname = usePathname();
   const segments = useSegments(); // e.g. ['(tabs)', 'home', 'messaging', 'chatId123']
@@ -41,7 +47,6 @@ export default function TabLayout() {
     segments.length > 2 &&
     segments[0] === "(customer)" &&
     segments[1] === "home" &&
-    segments[2] === "messaging" &&
     segments[3]
   ) {
     isTabBarVisible = false;
@@ -57,13 +62,7 @@ export default function TabLayout() {
 
   // Customize header based on route
   if (currentMainTab === "home") {
-    if (currentSubPage === "messaging" && detailPage) {
-      screenTitle = "Chat";
-      showHeader = true;
-    } else if (currentSubPage === "messaging") {
-      screenTitle = "Messages";
-      showHeader = true;
-    } else if (currentSubPage && currentSubPage.startsWith("[pid]")) {
+    if (currentSubPage && currentSubPage.startsWith("[pid]")) {
       screenTitle = "Product Details";
       showHeader = true;
       isTabBarVisible = false;
@@ -146,5 +145,27 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+  );
+}
+
+export default function CustomerPortalLayout() {
+  // console.log("key ================> ", process.env.EXPO_PUBLIC_PAYSTACK_KEY);
+  return (
+    <PaystackProvider
+      publicKey={process.env.EXPO_PUBLIC_PAYSTACK_KEY || ""}
+      // debug
+      currency="ZAR"
+      defaultChannels={["card", "mobile_money"]}
+    >
+      <ProductProvider>
+        <SearchProvider>
+          <CartProvider>
+            <OrderProvider>
+              <CustomerTabLayout />
+            </OrderProvider>
+          </CartProvider>
+        </SearchProvider>
+      </ProductProvider>
+    </PaystackProvider>
   );
 }

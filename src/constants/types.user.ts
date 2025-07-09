@@ -12,6 +12,8 @@ export interface AppUser extends User {
   gender?: "male" | "female";
   likedProductIds: string[];
   FollowingSellersIds: string[];
+
+  pushToken?: string;
 }
 
 export interface Address {

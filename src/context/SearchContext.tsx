@@ -20,6 +20,8 @@ import {
 import { db } from "../lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Product } from "../constants/types.product";
+import { supabase } from "../lib/supabase";
+import { mapSupabaseToProduct } from "../helpers/helper.customer";
 
 const RECENT_SEARCHES_KEY = "recent_searches";
 
@@ -104,41 +106,24 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const productsRef = collection(db, "products");
-      const q = query(
-        productsRef,
-        orderBy("name"),
-        startAt(trimmedTerm),
-        endAt(trimmedTerm + "\uf8ff"),
-        limit(15)
-      );
+      const formattedQuery = trimmedTerm.split(" ").join(" & ");
 
-      const querySnapshot = await getDocs(q);
-      const results = querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          pid: doc.id,
-          name: data.name as string,
-          category: data.category as string,
-          price: data.price as number,
-          sellerId: data.sellerId as string,
-          sellerName: data.sellerName as string,
-          avgRating: data.avgRating as number,
-          condition: data.condition as String,
-          imagesUrl: data.imagesURL as string[],
-          description: data.description as string,
-          createdAt: data.createdAt as Timestamp,
-        } as Product;
-      }) as Product[];
+      const { data, error: searchError } = await supabase
+        .from("products")
+        .select()
+        .textSearch("product_search_vector", formattedQuery, {
+          type: "websearch",
+          config: "english",
+        })
+        .limit(20);
+
+      if (searchError) throw searchError;
+
+      const results = data.map(mapSupabaseToProduct);
       setSearchResults(results);
     } catch (err: any) {
-      console.error("Firestore search error:", err);
+      console.error("Supabase full-text search error:", err.message);
       setError("Failed to fetch search results.");
-      if (err.code === "failed-precondition") {
-        setError(
-          "Search functionality requires a database index. Please check console logs."
-        );
-      }
     } finally {
       setLoading(false);
     }

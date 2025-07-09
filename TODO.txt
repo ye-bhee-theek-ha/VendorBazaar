@@ -5,6 +5,9 @@ For development in a custom "development build".
 For your final production/release app built with EAS.
 You need to add the SHA-1 for each environment you test and release with to your Firebase project settings.
 
+delete userinfo from local storage on signout so google login allows option to select account
+
+
 
 ---------------------------
 
@@ -25,5 +28,10 @@ Creating a personalized "For You" feed
 ------------------
 
 always use serverTimestamp() when creating a new product document
+
+----------------------
+
+get product price from db insted of context during payment
+
 
 

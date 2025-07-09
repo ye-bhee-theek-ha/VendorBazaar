@@ -166,7 +166,7 @@ export default function LoginScreen() {
                   Login with Google
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-[#1877F2] border border-[#1877F2]">
+              {/* <TouchableOpacity className="w-full h-12 rounded-lg justify-center items-center mb-4 flex-row bg-[#1877F2] border border-[#1877F2]">
                 <Ionicons
                   name="logo-facebook"
                   size={22}
@@ -176,7 +176,7 @@ export default function LoginScreen() {
                 <Text className="text-white text-medium font-medium font-sans">
                   Login with Facebook
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               <View className="mt-6 flex-row justify-center items-center">
                 <Text className="text-gray-500 text-small font-sans">

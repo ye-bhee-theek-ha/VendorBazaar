@@ -17,10 +17,10 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithCredential,
+  onIdTokenChanged,
 } from "firebase/auth";
 
 import { auth, db } from "../lib/firebase";
-import { useRootNavigationState, useRouter, useSegments } from "expo-router";
 import {
   arrayRemove,
   arrayUnion,
@@ -33,8 +33,6 @@ import {
 } from "firebase/firestore";
 import { AppUser } from "../constants/types.user";
 
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
 import { Alert } from "react-native";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
@@ -67,215 +65,97 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
   const [likedProductIds, setLikedProductIds] = useState<string[]>([]);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [initialAuthLoading, setInitialAuthLoading] = useState<boolean>(true);
-  const router = useRouter();
-  const segments = useSegments();
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId:
-      "902077437711-hhavq0qplha646a9s318pbsnka0tdn21.apps.googleusercontent.com",
-    iosClientId:
-      "902077437711-dseprq31p115t8v6g7o168oopafjc0ca.apps.googleusercontent.com",
-    webClientId:
-      "902077437711-ev02r5d3t37i3t7e4espaj1cdbl7iptv.apps.googleusercontent.com",
-  });
-
-  // google signin useEffect
-  useEffect(() => {
-    if (response?.type === "success") {
-      setLoading(true);
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential)
-        .catch((error) => {
-          console.error(
-            "Firebase sign-in with Google credential failed:",
-            error
-          );
-          Alert.alert(
-            "Sign-In Error",
-            "Could not sign in with Google. Please try again."
-          );
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else if (response?.type === "error") {
-      Alert.alert("Sign-In Canceled", "Google Sign-In was canceled or failed.");
-      setLoading(false);
-    }
-  }, [response]);
-
-  // useEffect(() => {
-  //   console.log("AuthContext: Initializing auth state listener...");
-  //   const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-  //     setInitialAuthLoading(true);
-  //     if (firebaseUser) {
-  //       setUser(firebaseUser);
-  //       try {
-  //         const userDocRef = doc(db, "users", firebaseUser.uid);
-  //         const userDocSnap = await getDoc(userDocRef);
-  //         if (userDocSnap.exists()) {
-  //           const userData = userDocSnap.data();
-  //           setAppUser({
-  //             ...firebaseUser,
-  //             fullName: userData.fullName,
-  //             role: userData.role,
-  //             OnboardingCompleted: userData.OnboardingCompleted || "false",
-  //           } as AppUser);
-  //         } else {
-  //           console.warn(
-  //             "User document not found in Firestore for UID [deleting account]:",
-  //             firebaseUser.uid
-  //           );
-  //           deleteUser(firebaseUser);
-  //           setAppUser(null);
-  //         }
-  //       } catch (error) {
-  //         console.error("Error fetching user data from Firestore:", error);
-  //         setAppUser(firebaseUser as AppUser);
-  //       }
-  //     } else {
-  //       setUser(null);
-  //       setAppUser(null);
-  //     }
-  //     setInitialAuthLoading(false);
-  //   });
-  //   return () => unsubscribe();
-  // }, []);
 
   useEffect(() => {
-    // This listener handles all authentication state changes for the app
+    GoogleSignin.configure({
+      webClientId:
+        "817629834864-gpljnhiikhj0ap4f0586puhba4sh96n3.apps.googleusercontent.com",
+    });
+  }, []);
+
+  // This listener handles all authentication state changes for the app
+  useEffect(() => {
     console.log("AuthContext: Initializing auth state listener...");
+    // setAppUser(null);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setInitialAuthLoading(true);
-      if (firebaseUser) {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
 
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          setAppUser({
-            ...firebaseUser,
-            fullName: userData.fullName,
-            role: userData.role,
-            OnboardingCompleted: userData.OnboardingCompleted || "false",
-            likedProductIds: userData.likedProductIds || [],
-            FollowingSellersIds: userData.FollowingSellersIds || [],
-            address: userData.address || [],
-          } as AppUser);
-          setLikedProductIds(userData.likedProductIds || []);
+      try {
+        if (firebaseUser) {
+          // User is signed in
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          console.log("DEBUG: User document snapshot:", userDocSnap.exists());
+
+          if (userDocSnap.exists()) {
+            // User document exists, merge data
+            const userData = userDocSnap.data();
+            setAppUser({
+              ...firebaseUser,
+              fullName: userData.fullName,
+              role: userData.role,
+              OnboardingCompleted: userData.OnboardingCompleted || "false",
+              likedProductIds: userData.likedProductIds || [],
+              FollowingSellersIds: userData.FollowingSellersIds || [],
+              address: userData.address || [],
+            } as AppUser);
+            setLikedProductIds(userData.likedProductIds || []);
+          } else {
+            // New user, create their document in Firestore
+            console.log(
+              "Creating new user profile in Firestore for:",
+              firebaseUser.email
+            );
+            const newUserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              fullName: firebaseUser.displayName || "New User",
+              photoURL: firebaseUser.photoURL || null,
+              role: "customer",
+              OnboardingCompleted: "false",
+              createdAt: serverTimestamp(),
+              address: [],
+              dob: null,
+              gender: null,
+              likedProductIds: [],
+              FollowingSellersIds: [],
+            };
+            await setDoc(userDocRef, newUserProfile);
+            // Set the app user state with the newly created profile data
+            setAppUser({
+              ...firebaseUser,
+              fullName: newUserProfile.fullName,
+              role: newUserProfile.role,
+              OnboardingCompleted: newUserProfile.OnboardingCompleted,
+            } as AppUser);
+            setLikedProductIds([]);
+          }
         } else {
-          // they won't have a document. We must create one here.
-          console.log(
-            "Creating new user profile in Firestore for:",
-            firebaseUser.email
-          );
-          const newUserProfile = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            fullName: firebaseUser.displayName || "New User",
-            role: "customer",
-            OnboardingCompleted: "false",
-            createdAt: serverTimestamp(),
-
-            // onboarding feilds
-            address: [],
-            dob: null,
-            gender: null,
-
-            likedProductIds: [],
-            FollowingSellersIds: [],
-          };
-          await setDoc(userDocRef, newUserProfile);
-          setAppUser({
-            ...firebaseUser,
-            fullName: firebaseUser.displayName || "New User",
-            role: "customer",
-            OnboardingCompleted: "false",
-          } as AppUser);
+          // User is signed out
+          console.log("DEBUG: User is signed out.");
+          setAppUser(null);
           setLikedProductIds([]);
         }
-      } else {
-        // User is signed out
+      } catch (error) {
+        console.error("Error during authentication state change:", error);
+        await firebaseSignOut(auth);
+        await GoogleSignin.signOut();
         setAppUser(null);
         setLikedProductIds([]);
+      } finally {
+        console.log("DEBUG: Initial auth loading complete.");
+        setInitialAuthLoading(false);
       }
-      setInitialAuthLoading(false);
     });
+
+    // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, []);
-
-  // useeffect to handle navigation
-  useEffect(() => {
-    if (initialAuthLoading) {
-      console.log("AuthContext: Router not ready or initial auth loading.");
-      return;
-    }
-
-    if (!Array.isArray(segments)) {
-      console.log(
-        "AuthContext: Segments not yet available. Deferring navigation logic."
-      );
-      return;
-    }
-
-    const inAuthGroup = segments[0] === "(auth)";
-    const inOnboardingGroup = segments[0] === "(onboarding)";
-
-    if (!appUser) {
-      if (!inAuthGroup) {
-        console.log("No user. Redirecting to login.");
-        router.replace("/(auth)/login");
-      }
-      return;
-    }
-
-    if (appUser.OnboardingCompleted === "false") {
-      if (!inOnboardingGroup) {
-        console.log("User not onboarded. Redirecting to onboarding.");
-        router.replace("/(onboarding)");
-      }
-      // already in onboarding group, no need to redirect
-      return;
-    }
-
-    const isInPublicGroups = inAuthGroup || inOnboardingGroup;
-    const shouldBeInHome = !(appUser.OnboardingCompleted === "false");
-
-    if (shouldBeInHome) {
-      if (isInPublicGroups) {
-        if (appUser.role === "seller") {
-          console.log("Redirecting seller to home.");
-          router.replace("/(seller)/home");
-        } else if (appUser.role === "customer") {
-          console.log("Redirecting customer to home.");
-          router.replace("/(customer)/home");
-        } else {
-          console.log("Unknown role. Signing out.");
-          signOut();
-          router.replace("/(auth)/login");
-        }
-      }
-      // If they are already in their correct section
-      return;
-    }
-
-    console.log("AuthContext Navigation Check:");
-    console.log("Current user:", user ? user.uid : "No user");
-    console.log("App user Onboarding:", appUser.OnboardingCompleted);
-    console.log("Initial loading:", initialAuthLoading);
-    console.log("Loading state:", loading);
-    console.log("inAuthGroup:", inAuthGroup);
-    console.log("inOnboardingGroup:", inOnboardingGroup);
-    console.log("Current segments:", segments);
-    console.log("----------------------------------------");
-  }, [appUser, segments, initialAuthLoading, loading, router]);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const toggleLikeProduct = async (productId: string) => {
     if (!appUser) return;
@@ -328,9 +208,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           FollowingSellersIds: arrayRemove(sellerId),
         });
         await updateDoc(sellerDocRef, { totalFollowers: increment(-1) });
+        await updateDoc(sellerDocRef, {
+          FollowersIds: arrayRemove(appUser.uid),
+        });
       } else {
         await updateDoc(userDocRef, {
           FollowingSellersIds: arrayUnion(sellerId),
+        });
+        await updateDoc(sellerDocRef, {
+          FollowersIds: arrayUnion(sellerId),
         });
         await updateDoc(sellerDocRef, { totalFollowers: increment(1) });
       }
@@ -406,8 +292,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setLoading(true);
     try {
       await firebaseSignOut(auth);
-
-      console.log("AuthContext: User signed out.");
+      if (GoogleSignin.getCurrentUser()) {
+        await GoogleSignin.signOut();
+      }
+      console.log("DEBUG AuthContext: User signed out.");
     } catch (error) {
       console.error("Sign out error:", error);
       throw error;
@@ -431,11 +319,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const signInWithGoogle = async () => {
     setLoading(true);
     try {
-      GoogleSignin.configure({
-        webClientId:
-          "902077437711-ev02r5d3t37i3t7e4espaj1cdbl7iptv.apps.googleusercontent.com",
-      });
-
       await GoogleSignin.hasPlayServices({
         showPlayServicesUpdateDialog: true,
       });

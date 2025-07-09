@@ -6,25 +6,20 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  DocumentData,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product } from "../constants/types.product";
+import { supabase } from "../lib/supabase";
+import { mapSupabaseToProduct } from "../helpers/helper.customer";
+
+interface Category {
+  id: string;
+  name: string;
+}
 
 interface ProductContextType {
   products: Product[];
-  categories: { name: string; id: string }[];
+  categories: Category[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   loadMoreProducts: () => void;
@@ -42,11 +37,9 @@ const PRODUCTS_PER_PAGE = 10;
 // --- Provider Component ---
 export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{ name: string; id: string }[]>([
-    { name: "all", id: "all" },
-    { name: "electronics", id: "electronics" },
-    { name: "clothing", id: "clothing" },
-  ]);
+  const [categories, setCategories] = useState<{ name: string; id: string }[]>(
+    []
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   // State for loading indicators
@@ -55,128 +48,113 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   // State for pagination logic
-  const [lastVisible, setLastVisible] =
-    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  // TODO Effect to fetch the list of categories once
+  // Effect to fetch categories from Firestore
+  useEffect(() => {
+    const categoriesCollectionRef = collection(db, "categories");
+    const q = query(categoriesCollectionRef, orderBy("name", "asc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const categoryList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Category[];
+        setCategories([{ id: "All", name: "All" }, ...categoryList]);
+      },
+      (err) => {
+        console.error("Failed to fetch categories:", err);
+        setCategories([
+          { name: "electronics", id: "electronics" },
+          { name: "clothing", id: "clothing" },
+        ]);
+        console.log("first");
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   // Effect to fetch products when the selected category changes
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setHasMore(true);
-    setLastVisible(null);
-
-    // console.log("Fetching products for category:", selectedCategory);
-
-    try {
-      const productsCollectionRef = collection(db, "products");
-      let q = query(
-        productsCollectionRef,
-        orderBy("createdAt", "desc"),
-        limit(PRODUCTS_PER_PAGE)
-      );
-
-      if (selectedCategory !== "all" && selectedCategory !== "") {
-        q = query(
-          productsCollectionRef,
-          where("category", "==", selectedCategory),
-          orderBy("createdAt", "desc"),
-          limit(PRODUCTS_PER_PAGE)
-        );
+  const fetchProducts = useCallback(
+    async (isInitialLoad = true) => {
+      if (isInitialLoad) {
+        setLoading(true);
       }
+      setError(null);
+      setHasMore(true);
+      setCurrentPage(0); // Reset to first page
 
-      const documentSnapshots = await getDocs(q);
+      try {
+        let queryBuilder = supabase
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(0, PRODUCTS_PER_PAGE - 1);
 
-      const productList = documentSnapshots.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          pid: doc.id,
-          name: data.name as string,
-          category: data.category as string,
-          price: data.price as number,
-          sellerId: data.sellerId as string,
-          sellerName: data.sellerName as string,
-          sellerImgUrl: data.sellerImgUrl as string,
-          totalReviews: data.totalReviews as number,
-          ratingAvg: data.ratingAvg as number,
-          condition: data.condition as String,
-          imagesUrl: data.imagesURL as string[],
-          description: data.description as string,
-          createdAt: data.createdAt as Timestamp,
-        } as Product;
-      }) as Product[];
+        if (selectedCategory !== "All" && selectedCategory !== "") {
+          queryBuilder = queryBuilder.eq("category", selectedCategory);
+        }
 
-      setProducts(productList);
-      // console.log("Fetched length products:", productList.length);
+        const { data, error: fetchError } = await queryBuilder;
+        // console.log("query", queryBuilder, "\ndata =>", data);
 
-      // console.log("Products fetched:", productList);
+        if (fetchError) throw fetchError;
 
-      // Set the last visible document for pagination
-      const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
-      setLastVisible(lastDoc);
+        const productList = data.map(mapSupabaseToProduct);
+        setProducts(productList);
 
-      // Check if there are more products
-      if (documentSnapshots.docs.length < PRODUCTS_PER_PAGE) {
-        setHasMore(false);
+        if (data.length < PRODUCTS_PER_PAGE) {
+          setHasMore(false);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch products from Supabase:", err.message);
+        setError("Could not load products. Please check your connection.");
+      } finally {
+        if (isInitialLoad) setLoading(false);
       }
-    } catch (err: any) {
-      console.error("Failed to fetch products:", err);
-      setError("Could not load products. Please check your connection.");
-      // IMPORTANT: Firestore may require a composite index for this query.
-      // The error message in your console will include a link to create it.
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCategory]);
+    },
+    [selectedCategory]
+  );
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(true);
   }, [fetchProducts]);
 
   // Function to load more products for infinite scroll
   const loadMoreProducts = async () => {
-    if (loadingMore || !hasMore) {
-      return;
-    }
+    if (loadingMore || !hasMore) return;
+
     setLoadingMore(true);
+    const nextPage = currentPage + 1;
+    const from = nextPage * PRODUCTS_PER_PAGE;
+    const to = from + PRODUCTS_PER_PAGE - 1;
+
     try {
-      const productsCollectionRef = collection(db, "products");
-      let q = query(
-        productsCollectionRef,
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible), // Start after the last fetched document
-        limit(PRODUCTS_PER_PAGE)
-      );
+      let queryBuilder = supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (selectedCategory !== "All") {
-        q = query(
-          productsCollectionRef,
-          where("category", "==", selectedCategory),
-          orderBy("createdAt", "desc"),
-          startAfter(lastVisible),
-          limit(PRODUCTS_PER_PAGE)
-        );
+        queryBuilder = queryBuilder.eq("category", selectedCategory);
       }
 
-      const documentSnapshots = await getDocs(q);
-      const newProductList = documentSnapshots.docs.map((doc) => ({
-        pid: doc.id,
-        ...doc.data(),
-      })) as Product[];
+      const { data, error: fetchError } = await queryBuilder;
 
-      // Append new products to the existing list
+      if (fetchError) throw fetchError;
+
+      const newProductList = data.map(mapSupabaseToProduct);
       setProducts((prevProducts) => [...prevProducts, ...newProductList]);
+      setCurrentPage(nextPage);
 
-      const lastDoc = documentSnapshots.docs[documentSnapshots.docs.length - 1];
-      setLastVisible(lastDoc);
-
-      if (documentSnapshots.docs.length < PRODUCTS_PER_PAGE) {
+      if (data.length < PRODUCTS_PER_PAGE) {
         setHasMore(false);
       }
-    } catch (err) {
-      console.error("Failed to load more products:", err);
+    } catch (err: any) {
+      console.error("Failed to load more products from Supabase:", err.message);
       setError("Could not load more products.");
     } finally {
       setLoadingMore(false);

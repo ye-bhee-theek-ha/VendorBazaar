@@ -23,6 +23,8 @@ import { Product } from "@/src/constants/types.product";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, Stack } from "expo-router";
 import { ListItem } from "../home";
+import { supabase } from "@/src/lib/supabase";
+import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
 
 // A component for each saved item in the list
 const SavedItemCard = ({ product }: { product: Product }) => {
@@ -70,11 +72,14 @@ export default function SavedItemsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log(likedProductIds);
+
   // Function to fetch products in chunks of 30 (Firestore 'in' query limit)
   const fetchSavedProducts = useCallback(async () => {
     if (!likedProductIds || likedProductIds.length === 0) {
       setSavedProducts([]);
       setLoading(false);
+      console.log("DEBUG: No liked products found.");
       return;
     }
 
@@ -82,34 +87,16 @@ export default function SavedItemsScreen() {
     setError(null);
 
     try {
-      const allFetchedProducts: Product[] = [];
-      // Chunk the savedProductIds array into groups of 30
-      for (let i = 0; i < likedProductIds.length; i += 30) {
-        const chunk = likedProductIds.slice(i, i + 30);
-        if (chunk.length > 0) {
-          const productsRef = collection(db, "products");
-          const q = query(productsRef, where(documentId(), "in", chunk));
-          const querySnapshot = await getDocs(q);
-          const chunkProducts = querySnapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-              pid: doc.id,
-              name: data.name as string,
-              category: data.category as string,
-              price: data.price as number,
-              sellerId: data.sellerId as string,
-              sellerName: data.sellerName as string,
-              avgRating: data.avgRating as number,
-              condition: data.condition as String,
-              imagesUrl: data.imagesURL as string[],
-              description: data.description as string,
-              createdAt: data.createdAt as Timestamp,
-            } as Product;
-          }) as Product[];
-          allFetchedProducts.push(...chunkProducts);
-        }
+      const { data, error } = await supabase
+        .from("products") // Your table name
+        .select("*") // Select all columns
+        .in("id", likedProductIds);
+
+      if (error) {
+        throw error;
       }
-      setSavedProducts(allFetchedProducts);
+      const productList = data.map(mapSupabaseToProduct);
+      setSavedProducts(productList);
     } catch (err) {
       console.error("Failed to fetch saved products:", err);
       console.log(likedProductIds);

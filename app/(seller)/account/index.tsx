@@ -87,6 +87,13 @@ export default function AccountScreen() {
             }}
           />
           <MenuItem
+            icon="wallet-outline"
+            text="Payment Methods"
+            onPress={() => {
+              router.push("/(customer)/account/payment-methods");
+            }}
+          />
+          <MenuItem
             icon="notifications-outline"
             text="Notifications"
             onPress={() => router.push("/notifications")}

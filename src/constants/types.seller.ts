@@ -6,8 +6,23 @@ export interface Seller {
   shopBannerUrl?: string;
   bio?: string;
   memberSince: Timestamp;
+
+  address?: {
+    street: string;
+    city: string;
+    postalCode: string;
+    province: string;
+  };
+
+  paystackAccountId: string;
+  paystackSubaccountCode: string;
+
   avgRating: number;
   totalReviews: number;
   totalProducts: number;
   totalFollowers: number;
+
+  // Verification & Status
+  verified: boolean; // Master verification status
+  paystackVerified: boolean; // Tracks if the payout account is set up and verified
 }

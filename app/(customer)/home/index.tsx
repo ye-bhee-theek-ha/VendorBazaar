@@ -24,13 +24,13 @@ const CategoryFilters = () => {
   const { categories, selectedCategory, setSelectedCategory, loading } =
     useProducts();
 
-  if (loading && categories.length <= 1) {
-    return (
-      <View className="h-[50px] justify-center items-center">
-        <ActivityIndicator />
-      </View>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <View className="h-[50px] justify-center items-center">
+  //       <ActivityIndicator />
+  //     </View>
+  //   );
+  // }
 
   return (
     <View className="pt-2 pb-3 ">
@@ -42,7 +42,11 @@ const CategoryFilters = () => {
         {categories.map((category) => (
           <TouchableOpacity
             key={category.id}
-            onPress={() => setSelectedCategory(category.name)}
+            onPress={() => {
+              selectedCategory === category.name
+                ? setSelectedCategory("")
+                : setSelectedCategory(category.name);
+            }}
             className={`px-5 py-2.5 rounded-xl mr-3 border border-black/15 ${
               selectedCategory === category.name ? "bg-black" : "bg-white/50"
             }`}
@@ -149,7 +153,6 @@ const SearchAndFilter = () => (
 
 export default function CustomerHomeScreen() {
   const { products, loading, error, loadMoreProducts, hasMore } = useProducts();
-  const { user, loading: authLoading } = useAuth();
 
   const dataForList: ListItem[] = useMemo(() => {
     if (products.length % 2 !== 0) {

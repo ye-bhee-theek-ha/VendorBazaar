@@ -1,4 +1,5 @@
 // app/(customer)/home/[pid].tsx
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -8,17 +9,21 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
-import { Product } from "@/src/constants/types.product";
 import { useAuth } from "@/src/context/AuthContext";
 import { useCart } from "@/src/context/CartContext";
 import { useProducts } from "@/src/context/ProductContext";
-
-const SIZES = ["S", "M", "L", "XL"]; // Example sizes
+import { useMessaging } from "@/src/context/MessagingContext"; // Import the messaging context
+import {
+  Product,
+  ProductOption,
+  ProductOptionValue,
+} from "@/src/constants/types.product";
 
 export default function ProductDetailsScreen() {
   const { pid } = useLocalSearchParams<{ pid: string }>();
@@ -31,7 +36,11 @@ export default function ProductDetailsScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  // State to hold selected options, e.g., { "Size": "M", "Color": "Red" }
+  const [selectedOptions, setSelectedOptions] = useState<{
+    [key: string]: ProductOptionValue;
+  }>({});
 
   useEffect(() => {
     if (!pid) {
@@ -64,75 +73,94 @@ export default function ProductDetailsScreen() {
               sellerImgUrl: data.sellerImgUrl as string,
               totalReviews: data.totalReviews as number,
               ratingAvg: data.avgRating as number,
-              condition: data.condition as String,
+              condition: data.condition as "new" | "used" | "refurbished",
               imagesUrl: data.imagesURL as string[],
               description: data.description as string,
               createdAt: data.createdAt as Timestamp,
-            } as Product);
+              options: data.options as ProductOption[],
+              stockQuantity: data.stockQuantity as number,
+              // TODO add fields to firebase
+              disabled: data.disabled as boolean,
+              disabledAdmin: data.disabledAdmin as boolean,
+              deleted: data.deleted as boolean,
+            });
           } else {
             setError("Product not found.");
-            setProduct(null);
           }
         } catch (err) {
           console.error("Error fetching product:", err);
           setError("Failed to load product details.");
-          setProduct(null);
         } finally {
           setLoading(false);
         }
       };
-
       fetchProduct();
     }
-  }, [pid, contextProducts]); // Add contextProducts to the dependency array
+  }, [pid, contextProducts]);
+
+  const handleSelectOption = (
+    optionName: string,
+    value: ProductOptionValue
+  ) => {
+    setSelectedOptions((prev) => ({
+      ...prev,
+      [optionName]: value,
+    }));
+  };
 
   const handleAddToCart = () => {
     if (!product) return;
-    if (!selectedSize) {
-      alert("Please select a size."); // TODO: A more elegant toast/modal is better for production
-      return;
+    // Check if all required options are selected
+    if (product.options) {
+      for (const option of product.options) {
+        if (!selectedOptions[option.name]) {
+          Alert.alert("Selection Required", `Please select a ${option.name}.`);
+          return;
+        }
+      }
     }
-    // Assuming quantity is 1 for now. This can be extended with a quantity selector.
-    addToCart(product, 1);
-    // Optionally navigate to cart or show a confirmation message
-    alert("Added to cart!");
+    addToCart(product, 1, selectedOptions);
+    Alert.alert("Success", "Added to cart!");
+  };
+
+  const handleMessageSeller = async () => {
+    if (!product) return;
+    // setIsCreatingConversation(true);
+    router.push({
+      pathname: "/(messages)/chat",
+      params: {
+        recipientId: product.sellerId,
+        recipientName: product.sellerName,
+      },
+    });
   };
 
   const isSaved = product ? likedProductIds.includes(product.pid) : false;
 
   if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <ActivityIndicator size="large" className="flex-1 justify-center" />;
   }
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center p-5">
-        <Text className="text-red-500">{error}</Text>
-      </View>
+      <Text className="flex-1 justify-center p-5 text-red-500">{error}</Text>
     );
   }
 
   if (!product) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text>Product could not be loaded.</Text>
-      </View>
+      <Text className="flex-1 justify-center">
+        Product could not be loaded.
+      </Text>
     );
   }
 
   return (
     <SafeAreaView className="flex-1 bg-white py-4">
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Product Image and Save Button */}
         <View className="relative items-center mb-4">
           <Image
-            source={{
-              uri: product.imagesUrl?.[0],
-            }}
+            source={{ uri: product.imagesUrl?.[0] }}
             className="w-[90%] aspect-square rounded-lg"
           />
           <TouchableOpacity
@@ -147,9 +175,7 @@ export default function ProductDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Main Details Section */}
         <View className="p-4">
-          {/* Seller Info */}
           <View className="flex-row justify-between items-center mb-3">
             <TouchableOpacity
               className="flex-row items-center"
@@ -160,26 +186,26 @@ export default function ProductDetailsScreen() {
                 })
               }
             >
-              <View className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 mr-3">
-                <Image
-                  source={{ uri: product.sellerImgUrl }}
-                  className="w-full aspect-square"
-                />
-              </View>
-              <View>
-                <Text className="text-text font-semibold">
-                  {product.sellerName}
-                </Text>
-              </View>
+              <Image
+                source={{ uri: product.sellerImgUrl }}
+                className="w-14 h-14 rounded-full bg-gray-200 mr-3"
+              />
+              <Text className="text-text font-semibold">
+                {product.sellerName}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity className="border border-green-600 rounded-lg px-4 py-2">
+            <TouchableOpacity
+              onPress={handleMessageSeller}
+              disabled={isCreatingConversation}
+              className="border border-green-600 rounded-lg px-4 py-2"
+            >
               <Text className="text-green-600 font-semibold">
-                Message Sellerr
+                {isCreatingConversation ? "Opening..." : "Message Seller"}
               </Text>
             </TouchableOpacity>
           </View>
+
           <View className="pl-4">
-            {/* Product Name and Rating */}
             <Text className="text-heading leading-loose font-bold text-gray-800">
               {product.name}
             </Text>
@@ -187,46 +213,51 @@ export default function ProductDetailsScreen() {
               <Ionicons name="star" size={20} color="#FFD700" />
               <Text className="text-text text-gray-700 ml-2 font-semibold">
                 {product.ratingAvg}/5
-                {/* //maybe change to float TODO */}
               </Text>
               <Text className="text-btn_title text-gray-500 ml-2">
                 ({product.totalReviews} review
-                {product.totalReviews > 1 ? "s" : ""})
+                {product.totalReviews !== 1 ? "s" : ""})
               </Text>
             </View>
-            {/* Description */}
             <Text className="text-btn_title text-grey leading-6 mb-4">
               {product.description}
             </Text>
 
-            {/* Size Selector//TODO  Options */}
-            <Text className="text-lg font-bold mb-2">Choose size</Text>
-            <View className="flex-row gap-x-3">
-              {SIZES.map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  onPress={() => setSelectedSize(size)}
-                  className={`w-14 h-14 rounded-lg border-2 justify-center items-center ${
-                    selectedSize === size
-                      ? "border-black bg-black"
-                      : "border-gray-300"
-                  }`}
-                >
-                  <Text
-                    className={`text-lg font-bold ${
-                      selectedSize === size ? "text-white" : "text-black"
-                    }`}
-                  >
-                    {size}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* Dynamic Product Options */}
+            {product.options?.map((option) => (
+              <View key={option.name} className="mb-4">
+                <Text className="text-lg font-bold mb-2">
+                  Choose {option.name}
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {option.values.map((value) => (
+                    <TouchableOpacity
+                      key={value.name}
+                      onPress={() => handleSelectOption(option.name, value)}
+                      className={`min-w-[56px] h-14 rounded-lg border-2 justify-center items-center px-4 ${
+                        selectedOptions[option.name] === value
+                          ? "border-black bg-black"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      <Text
+                        className={`text-lg font-bold ${
+                          selectedOptions[option.name] === value
+                            ? "text-white"
+                            : "text-black"
+                        }`}
+                      >
+                        {value.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>
 
-      {/* Bottom Action Bar */}
       <View className="flex-row items-center p-4 border-t border-gray-200 bg-white">
         <View>
           <Text className="text-sm text-gray-500">Price</Text>
