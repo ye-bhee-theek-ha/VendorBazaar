@@ -10,22 +10,13 @@ import { CartProvider } from "@/src/context/CartContext";
 import { SearchProvider } from "@/src/context/SearchContext";
 
 import { PaystackProvider, usePaystack } from "react-native-paystack-webview";
-
-// Example Custom Header (can be moved to components/common/CustomHeader.tsx)
-const CustomHeader = ({
-  title,
-  showHeader,
-}: {
-  title: string;
-  showHeader?: boolean;
-}) => {
-  if (!showHeader) return null;
-  return (
-    <View className="bg-blue-600 pt-10 pb-4 px-4 items-center justify-center shadow-md">
-      <Text className="text-white text-xl font-bold">{title}</Text>
-    </View>
-  );
-};
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 function CustomerTabLayout() {
   const { user, initialAuthLoading } = useAuth();
@@ -40,6 +31,9 @@ function CustomerTabLayout() {
     // Safe guard: if user is not authenticated, redirect to login
     return <Redirect href="/(auth)/login" />;
   }
+
+  const { effectiveTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   let isTabBarVisible = true;
 
@@ -75,25 +69,28 @@ function CustomerTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#000000",
-        tabBarInactiveTintColor: "#B3B3B3",
-
+        tabBarActiveTintColor:
+          effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+        tabBarInactiveTintColor: lightColors.secondaryText,
+        sceneStyle: {
+          flex: 1,
+          backgroundColor: "transparent",
+        },
         tabBarStyle: {
-          backgroundColor: "#ffffff",
+          backgroundColor:
+            effectiveTheme === "dark"
+              ? darkColors.headerBackground
+              : lightColors.headerBackground,
           borderTopWidth: 1,
-          borderTopColor: "#e5e7eb",
-          height: 70,
-          paddingBottom: 15,
-          display: isTabBarVisible ? "flex" : "none",
+          borderColor:
+            effectiveTheme === "dark" ? darkColors.accent : lightColors.accent,
+          height: 55 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "500",
-          color: "black",
+          color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
         },
-        header: (props) => (
-          <CustomHeader title={screenTitle} showHeader={true} {...props} />
-        ),
         headerShown: false,
       }}
     >

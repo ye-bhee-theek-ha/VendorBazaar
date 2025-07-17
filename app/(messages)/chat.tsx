@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
-  SafeAreaView,
 } from "react-native";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAuth } from "@/src/context/AuthContext";
@@ -16,6 +15,9 @@ import { supabase } from "@/src/lib/supabase";
 import { useMessaging } from "@/src/context/MessagingContext";
 import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAvoidingView } from "@/src/helpers/KeyboardAvoidingView";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -52,6 +54,8 @@ const ChatScreen = () => {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const flatListRef = useRef<FlatList<Message>>(null);
+
+  const { effectiveTheme } = useTheme();
 
   useEffect(() => {
     const loadChat = async () => {
@@ -182,14 +186,29 @@ const ChatScreen = () => {
   }
 
   return (
-    <SafeAreaView className="bg-white flex-1 pb-[10px]">
+    <SafeAreaView
+      className=" flex-1 "
+      edges={["bottom"]}
+      style={{
+        backgroundColor:
+          effectiveTheme === "dark"
+            ? darkColors.headerBackground
+            : lightColors.headerBackground,
+      }}
+    >
       <KeyboardAvoidingView>
         <FlatList
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
-          className="pt-4 flex-grow"
+          className=" flex-grow h-full pt-4"
+          style={{
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.background
+                : lightColors.background,
+          }}
           contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: true })
@@ -203,12 +222,31 @@ const ChatScreen = () => {
             </View>
           )}
         />
-        <View className="flex-row items-center p-3 bg-white border-t border-gray-200">
+        <View
+          className="flex-row items-center p-3 border-t border-gray-200 "
+          style={{
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.headerBackground
+                : lightColors.headerBackground,
+          }}
+        >
           <TextInput
             value={text}
             onChangeText={setText}
             placeholder="Message..."
-            className="flex-1 bg-gray-100 rounded-3xl py-3 px-5 mr-3 text-base"
+            className={`  ${
+              effectiveTheme === "dark" ? "bg-neutral-800" : "bg-gray-100"
+            } flex-1  rounded-3xl  px-5 mr-3 text-base `}
+            style={{
+              color:
+                effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            }}
+            placeholderTextColor={
+              effectiveTheme === "dark"
+                ? darkColors.placeholder
+                : lightColors.placeholder
+            }
             multiline
           />
           <TouchableOpacity

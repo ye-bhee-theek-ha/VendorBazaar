@@ -23,6 +23,7 @@ interface ProductContextType {
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   loadMoreProducts: () => void;
+  fetchProducts: () => void;
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
@@ -84,7 +85,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       }
       setError(null);
       setHasMore(true);
-      setCurrentPage(0); // Reset to first page
+      setCurrentPage(0);
 
       try {
         let queryBuilder = supabase
@@ -165,6 +166,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     products,
     categories,
     selectedCategory,
+    fetchProducts,
     setSelectedCategory,
     loadMoreProducts,
     loading,

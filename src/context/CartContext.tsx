@@ -10,19 +10,20 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { useAuth } from "./AuthContext";
 import {
   CartItem,
   Product,
   ProductOptionValue,
 } from "../constants/types.product";
-import { usePaystack } from "react-native-paystack-webview";
 import { Alert } from "react-native";
+import { useAuth } from "./AuthContext";
+import { Address } from "../constants/types.user";
 
 interface CartContextType {
   cartItems: CartItem[];
   loading: boolean;
   error: string | null;
+  isPaying: boolean;
   addToCart: (
     product: Product,
     quantity: number,
@@ -32,113 +33,95 @@ interface CartContextType {
   removeFromCart: (productId: string) => Promise<void>;
   cartSubtotal: number;
   totalItems: number;
-  initiatePayment: () => void;
+  initiatePayment: ({ address }: { address: Address }) => Promise<string>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
 
-  // Initialize Paystack for payment processing
-  const { popup } = usePaystack();
+  const { firebaseUser } = useAuth();
 
-  const paystackConfig = {
-    email: user?.email || "",
-    amount: 100,
-    currency: "NGN",
-    reference: `cart-${Date.now()}`,
-    metadata: {
-      custom_fields: [
-        {
-          display_name: "Cart Items",
-          variable_name: "cart_items",
-          value: JSON.stringify(cartItems),
-        },
-      ],
-    },
-    onSuccess: async (res: any) => {
-      console.log("Payment successful:", res);
-      // Handle successful payment logic here
-    },
-    onCancel: () => {
-      console.log("Payment cancelled");
-      // Handle payment cancellation logic here
-    },
-    onError: (err: any) => {
-      console.error("Payment error:", err);
-      setError("Payment failed. Please try again.");
-    },
-    onload: (res: any) => {
-      console.log("Paystack popup loaded: ", res);
-    },
-  };
-
-  const initiatePayment = () => {
-    if (!user) {
-      Alert.alert(
-        "Authentication Error",
-        "You must be logged in to make a payment."
-      );
-      return;
+  const initiatePayment = async ({
+    address,
+  }: {
+    address: Address;
+  }): Promise<string> => {
+    if (!firebaseUser) {
+      throw new Error("You must be logged in to make a payment.");
     }
-    const SHIPPING_FEE = 80.0;
-    const totalAmount = cartSubtotal + SHIPPING_FEE;
+    if (cartItems.length === 0) {
+      throw new Error("Your cart is empty and you cannot proceed.");
+    }
 
-    popup.newTransaction({
-      email: user.email || "",
-      amount: totalAmount * 100,
-      reference: `cart-${Date.now()}`,
-      metadata: {
-        custom_fields: [
-          {
-            display_name: "Cart Items",
-            variable_name: "cart_items",
-            value: JSON.stringify(
-              cartItems.map((item) => ({
-                name: item.name,
-                quantity: item.quantity,
-              }))
-            ),
-          },
-        ],
-      },
-      onSuccess: async (res: any) => {
-        console.log("Payment successful:", res);
-        // TODO: Create order in Firestore, clear cart, etc.
-        Alert.alert("Payment Successful", "Your order has been placed!");
-        // router.replace("/(customer)/home");
-      },
-      onCancel: () => {
-        console.log("Payment cancelled");
-        Alert.alert(
-          "Payment Cancelled",
-          "You have cancelled the payment process."
+    setIsPaying(true);
+    try {
+      const token = await firebaseUser.getIdToken();
+      if (!token) {
+        throw new Error("User is not authenticated.");
+      }
+      const CLOUD_FUNCTION_URL =
+        "https://us-central1-safebuyafrica-a4d6f.cloudfunctions.net/initializeMultiSellerTransaction";
+
+      if (!CLOUD_FUNCTION_URL) {
+        throw new Error(
+          "Please configure your Cloud Function URL in CartContext.tsx"
         );
-      },
-      onError: (err: any) => {
-        console.error("Payment error:", err);
-        Alert.alert(
-          "Payment Error",
-          "An error occurred during payment. Please try again."
-        );
-      },
-    });
+      }
+
+      const response = await fetch(CLOUD_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        // For 'onCall' functions, the payload must be wrapped in a 'data' object.
+        // cloud functions break the image url to invalid format by converting %2f to /
+        body: JSON.stringify({
+          data: { cartItems, address },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Extracts error message from Firebase Functions response
+        const errorMessage =
+          result.error?.message ||
+          "An unknown error occurred during payment initiation.";
+        throw new Error(errorMessage);
+      }
+
+      // The actual data is nested in result.result for onCall functions
+      const authorization_url = result.result?.authorization_url;
+      if (!authorization_url) {
+        throw new Error("Failed to get payment link from the server.");
+      }
+
+      return authorization_url;
+    } catch (error: any) {
+      console.error("Payment initialization failed:", error);
+      // Re-throw the error so it can be caught and displayed in the UI component
+      throw error;
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   // fetch cart items when user changes or mounts
   useEffect(() => {
-    if (!user) {
+    if (!firebaseUser) {
       setCartItems([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const cartCollectionRef = collection(db, "users", user.uid, "cart");
+    const cartCollectionRef = collection(db, "users", firebaseUser.uid, "cart");
     const q = query(cartCollectionRef);
 
     const unsubscribe = onSnapshot(
@@ -158,21 +141,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [firebaseUser]);
 
   const addToCart = async (
     product: Product,
     quantity: number,
     selectedOptions: { [key: string]: ProductOptionValue }
   ) => {
-    if (!user) {
+    if (!firebaseUser) {
       setError("You must be logged in to add items to the cart.");
       return;
     }
-    const cartItemRef = doc(db, "users", user.uid, "cart", product.pid);
+
+    const cartItemRef = doc(db, "users", firebaseUser.uid, "cart", product.pid);
     try {
       const newItem: CartItem = {
-        ...product,
+        pid: product.pid,
+        name: product.name,
+        price: product.price,
+        imagesUrl: product.imagesUrl,
+        sellerId: product.sellerId,
+        selectedOptions: selectedOptions,
         quantity: quantity,
       };
       await setDoc(cartItemRef, newItem, { merge: true });
@@ -183,8 +172,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = async (productId: string, newQuantity: number) => {
-    if (!user) return;
-    const cartItemRef = doc(db, "users", user.uid, "cart", productId);
+    if (!firebaseUser) return;
+    const cartItemRef = doc(db, "users", firebaseUser.uid, "cart", productId);
     try {
       if (newQuantity > 0) {
         await updateDoc(cartItemRef, { quantity: newQuantity });
@@ -199,8 +188,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeFromCart = async (productId: string) => {
-    if (!user) return;
-    const cartItemRef = doc(db, "users", user.uid, "cart", productId);
+    if (!firebaseUser) return;
+    const cartItemRef = doc(db, "users", firebaseUser.uid, "cart", productId);
     try {
       await deleteDoc(cartItemRef);
     } catch (err) {
@@ -218,9 +207,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     0
   );
 
-  const value = {
+  const value: CartContextType = {
     cartItems,
     loading,
+    isPaying,
     error,
     addToCart,
     updateQuantity,

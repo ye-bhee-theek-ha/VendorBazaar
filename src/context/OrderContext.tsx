@@ -56,8 +56,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setError(null);
-      const ordersCollectionRef = collection(db, "users", user.uid, "orders");
-      const q = query(ordersCollectionRef, orderBy("createdAt", "desc"));
+      const ordersCollectionRef = collection(db, "orders");
+      const q = query(
+        ordersCollectionRef,
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
+      );
 
       const snapshot = await getDocs(q);
       const allOrders = snapshot.docs.map((doc) => ({
@@ -81,8 +85,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoading(true);
-    const ordersCollectionRef = collection(db, "users", user.uid, "orders");
-    const q = query(ordersCollectionRef, orderBy("createdAt", "desc"));
+    const ordersCollectionRef = collection(db, "orders");
+    const q = query(
+      ordersCollectionRef,
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
 
     const unsubscribe = onSnapshot(
       q,

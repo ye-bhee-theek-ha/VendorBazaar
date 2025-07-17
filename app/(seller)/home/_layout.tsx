@@ -1,12 +1,18 @@
 // app/(seller)/home/_layout.tsx
+import HeaderRightIcons from "@/src/components/Layout_Components";
 import MessagesIcon from "@/src/components/MessagesIcon";
-import { View } from "@/src/components/Themed";
+import { lightColors } from "@/src/constants/Colors";
+import { darkColors } from "@/src/constants/Colors";
+import { useTheme } from "@/src/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { TouchableOpacity } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 
 export default function HomeStackLayout() {
+  const { effectiveTheme } = useTheme();
+
   return (
     <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
       <Stack.Screen
@@ -14,24 +20,26 @@ export default function HomeStackLayout() {
         options={{
           headerShown: true,
           title: "Dashboard",
-          headerTitleAlign: "center",
+          headerTitleAlign: "left",
           headerShadowVisible: false,
-          headerRight: () => (
-            <View className="flex-row items-center">
-              <TouchableOpacity
-                className="mr-4"
-                onPress={() => router.push("/notifications")}
-              >
-                <Ionicons name="notifications-outline" size={28} />
-              </TouchableOpacity>
-              <MessagesIcon />
-            </View>
-          ),
+          headerStyle: {
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.headerBackground
+                : lightColors.headerBackground,
+          },
+          headerTitleStyle: {
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            fontFamily: "MuseoModerno_SemiBold",
+            fontSize: 22,
+          },
+          contentStyle: {
+            backgroundColor: "transparent",
+          },
+          headerRight: () => <HeaderRightIcons />,
         }}
       />
-
-      <Stack.Screen name="messaging" options={{ headerShown: false }} />
-      <Stack.Screen name="[productDetails]" options={{ title: "Product" }} />
     </Stack>
   );
 }

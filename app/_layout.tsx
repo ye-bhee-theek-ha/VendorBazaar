@@ -7,7 +7,7 @@ import { Stack, useNavigation, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 
@@ -16,11 +16,14 @@ import "@/global.css";
 import LoadingScreen from "@/src/screens/LoadingScreen";
 
 import { NotificationProvider } from "@/src/context/NotificationContext";
-import { TouchableOpacity } from "react-native";
+import { TouchableOpacity, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SearchProvider } from "@/src/context/SearchContext";
 import { OrderProvider } from "@/src/context/OrderContext";
 import { MessagingProvider } from "@/src/context/MessagingContext";
+import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
+import { setStatusBarStyle, StatusBar } from "expo-status-bar";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -36,7 +39,23 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 const AppFonts = {
-  AlbertSans: require("../assets/fonts/AlbertSans-Variable.ttf"),
+  SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+
+  MuseoModerno_BoldItalic: require("../assets/fonts/MuseoModerno-BoldItalic.ttf"),
+  MuseoModerno_Bold: require("../assets/fonts/MuseoModerno-Bold.ttf"),
+  MuseoModerno_SemiBoldItalic: require("../assets/fonts/MuseoModerno-SemiBoldItalic.ttf"),
+  MuseoModerno_SemiBold: require("../assets/fonts/MuseoModerno-SemiBold.ttf"),
+  MuseoModerno_Regular: require("../assets/fonts/MuseoModerno-Regular.ttf"),
+  MuseoModerno_italic: require("../assets/fonts/MuseoModerno-Italic.ttf"),
+  MuseoModerno_MediumItalic: require("../assets/fonts/MuseoModerno-MediumItalic.ttf"),
+  MuseoModerno_Medium: require("../assets/fonts/MuseoModerno-Medium.ttf"),
+  MuseoModerno_LightItalic: require("../assets/fonts/MuseoModerno-LightItalic.ttf"),
+  MuseoModerno_Light: require("../assets/fonts/MuseoModerno-Light.ttf"),
+
+  Fredoka_Regular: require("../assets/fonts/Fredoka-Regular.ttf"),
+  Fredoka_Medium: require("../assets/fonts/Fredoka-Medium.ttf"),
+  Fredoka_SemiBold: require("../assets/fonts/Fredoka-SemiBold.ttf"),
+
   ...FontAwesome.font,
 };
 
@@ -48,6 +67,12 @@ function RootLayoutNav() {
   const navigationState = navigation.getState();
 
   const [fontsLoaded, fontError] = useFonts(AppFonts);
+
+  const { effectiveTheme } = useTheme();
+
+  useEffect(() => {
+    setStatusBarStyle(effectiveTheme === "dark" ? "light" : "dark");
+  }, [effectiveTheme]);
 
   useEffect(() => {
     if (fontError) {
@@ -110,22 +135,62 @@ function RootLayoutNav() {
   }
 
   return (
+    // <SafeAreaView
+    //   style={{
+    //     flex: 1,
+    //     backgroundColor:
+    //       effectiveTheme === "dark"
+    //         ? darkColors.headerBackground
+    //         : lightColors.headerBackground,
+    //   }}
+    // >
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: "white" },
+        contentStyle: {
+          backgroundColor:
+            effectiveTheme === "dark"
+              ? darkColors.background
+              : lightColors.background,
+        },
       }}
       initialRouteName="(auth)"
     >
       <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(customer)" />
-      <Stack.Screen name="(seller)" />
+      <Stack.Screen
+        name="(customer)"
+        options={{
+          contentStyle: {
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.background
+                : lightColors.background,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="(seller)"
+        options={{
+          contentStyle: {
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.background
+                : lightColors.background,
+          },
+        }}
+      />
       <Stack.Screen name="(onboarding)" />
       <Stack.Screen
         name="(messages)"
         options={{
           presentation: "modal",
           headerShown: false,
+          contentStyle: {
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.background
+                : lightColors.background,
+          },
         }}
       />
       <Stack.Screen
@@ -133,18 +198,40 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           headerShown: true,
-          title: "Notifications",
-          headerTitleAlign: "center",
+          headerTitle: "Notifications",
+          headerTitleAlign: "left",
           headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.headerBackground
+                : lightColors.headerBackground,
+          },
+          headerTitleStyle: {
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            fontFamily: "MuseoModerno_SemiBold",
+            fontSize: 22,
+          },
+
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="ml-4">
-              <Ionicons name="close" size={28} />
+            <TouchableOpacity onPress={() => router.back()} className="mx-4">
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={
+                  effectiveTheme === "dark" ? darkColors.text : lightColors.text
+                }
+              />
             </TouchableOpacity>
           ),
+
+          animation: "ios_from_right",
         }}
       />
       <Stack.Screen name="+not-found" />
     </Stack>
+    // </SafeAreaView>
   );
 }
 
@@ -153,15 +240,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <MessagingProvider>
-            <NotificationProvider>
-              <SearchProvider>
-                <OrderProvider>
-                  <RootLayoutNav />
-                </OrderProvider>
-              </SearchProvider>
-            </NotificationProvider>
-          </MessagingProvider>
+          <ThemeProvider>
+            <MessagingProvider>
+              <NotificationProvider>
+                <SearchProvider>
+                  <OrderProvider>
+                    <RootLayoutNav />
+                  </OrderProvider>
+                </SearchProvider>
+              </NotificationProvider>
+            </MessagingProvider>
+          </ThemeProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

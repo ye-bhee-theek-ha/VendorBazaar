@@ -41,8 +41,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Product, ProductOption } from "@/src/constants/types.product";
+import { useTheme } from "@/src/context/ThemeContext";
+import { lightColors, darkColors } from "@/src/constants/Colors"; // Import palettes
 
-// --- Reusable UI Components ---
+// --- Reusable UI Components (Themed) ---
 
 type FormInputProps = {
   label: string;
@@ -51,42 +53,68 @@ type FormInputProps = {
   placeholder: string;
   multiline?: boolean;
   keyboardType?: KeyboardTypeOptions;
+  effectiveTheme: "light" | "dark";
 };
 
-const FormInput = ({ label, ...props }: FormInputProps) => (
-  <View className="mb-4">
-    <Text className="text-base font-medium text-gray-600 mb-2">{label}</Text>
-    <TextInput
-      {...props}
-      className={`p-3 border border-gray-300 rounded-lg text-base bg-white ${
-        props.multiline ? "h-28" : "h-12"
-      }`}
-      textAlignVertical={props.multiline ? "top" : "center"}
-      placeholderTextColor="#9CA3AF"
-    />
-  </View>
-);
+const FormInput = ({ label, effectiveTheme, ...props }: FormInputProps) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+  return (
+    <View className="mb-4">
+      <Text
+        style={{ color: colors.secondaryText }}
+        className="text-base font-medium mb-2"
+      >
+        {label}
+      </Text>
+      <TextInput
+        {...props}
+        style={{
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          color: colors.text,
+          height: props.multiline ? 112 : 48,
+        }}
+        className="p-3 border rounded-lg text-base"
+        textAlignVertical={props.multiline ? "top" : "center"}
+        placeholderTextColor={colors.placeholder}
+      />
+    </View>
+  );
+};
 
 const FormSection = ({
   title,
   children,
+  effectiveTheme,
 }: {
   title: string;
   children: React.ReactNode;
-}) => (
-  <View className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
-    <Text className="text-lg font-bold text-gray-800 mb-4">{title}</Text>
-    {children}
-  </View>
-);
+  effectiveTheme: "light" | "dark";
+}) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+  return (
+    <View
+      style={{ backgroundColor: colors.card, borderColor: colors.border }}
+      className="p-4 rounded-xl border shadow-sm mb-6"
+    >
+      <Text style={{ color: colors.text }} className="text-lg font-bold mb-4">
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+};
 
 const ConditionSelector = ({
   value,
   onSelect,
+  effectiveTheme,
 }: {
   value: Product["condition"];
   onSelect: (val: Product["condition"]) => void;
+  effectiveTheme: "light" | "dark";
 }) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
   const options: Product["condition"][] = ["new", "used", "refurbished"];
   const [containerWidth, setContainerWidth] = useState(0);
   const tabWidth = containerWidth > 0 ? containerWidth / options.length : 0;
@@ -98,25 +126,30 @@ const ConditionSelector = ({
 
   const animatedPillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: selectedIndex.value * tabWidth }],
+    backgroundColor: colors.card,
   }));
 
   const onContainerLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setContainerWidth(width);
+    setContainerWidth(event.nativeEvent.layout.width);
   };
 
   return (
     <View>
-      <Text className="text-base font-medium text-gray-600 mb-2">
+      <Text
+        style={{ color: colors.secondaryText }}
+        className="text-base font-medium mb-2"
+      >
         Condition
       </Text>
+
       <View
-        className="flex-row bg-gray-100 rounded-lg p-1"
+        style={{ backgroundColor: colors.background }}
+        className="flex-row rounded-lg p-1"
         onLayout={onContainerLayout}
       >
         {containerWidth > 0 && (
           <Animated.View
-            className="absolute h-full bg-white rounded-md shadow px-1"
+            className="absolute h-full rounded-md shadow"
             style={[
               { left: 5, alignSelf: "center", height: "100%" },
               { width: tabWidth - 10 },
@@ -128,12 +161,13 @@ const ConditionSelector = ({
           <TouchableOpacity
             key={option}
             onPress={() => onSelect(option)}
-            className="flex-1 p-2 rounded-md"
+            className="flex-1 p-2 rounded-md z-10"
           >
             <Text
-              className={`text-center font-semibold ${
-                value === option ? "text-primary-dark" : "text-gray-500"
-              }`}
+              className="text-center font-semibold"
+              style={{
+                color: value === option ? colors.text : colors.tertiaryText,
+              }}
             >
               {option.charAt(0).toUpperCase() + option.slice(1)}
             </Text>
@@ -147,10 +181,13 @@ const ConditionSelector = ({
 const CategoryInput = ({
   value,
   onSelect,
+  effectiveTheme,
 }: {
   value: string;
   onSelect: (val: string) => void;
+  effectiveTheme: "light" | "dark";
 }) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
   const [inputValue, setInputValue] = useState(value);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -208,10 +245,16 @@ const CategoryInput = ({
           setShowSuggestions(true);
         }}
         placeholder="e.g., Clothing, Electronics"
+        effectiveTheme={effectiveTheme}
       />
       {showSuggestions && debouncedQuery.length >= 3 && (
-        <View className="bg-white border border-gray-200 rounded-lg -mt-4 mb-4 shadow-lg">
-          {loading && <ActivityIndicator className="p-2" />}
+        <View
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          className="border rounded-lg -mt-4 mb-4 shadow-lg"
+        >
+          {loading && (
+            <ActivityIndicator className="p-2" color={colors.accent} />
+          )}
           {!loading && suggestions.length > 0 && (
             <FlatList
               data={suggestions}
@@ -219,9 +262,12 @@ const CategoryInput = ({
               renderItem={({ item }) => (
                 <TouchableOpacity
                   onPress={() => handleSelectSuggestion(item)}
-                  className="p-3 border-b border-gray-100"
+                  style={{ borderBottomColor: colors.border }}
+                  className="p-3 border-b"
                 >
-                  <Text className="text-base">{item}</Text>
+                  <Text style={{ color: colors.text }} className="text-base">
+                    {item}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
@@ -234,6 +280,8 @@ const CategoryInput = ({
 
 // --- Main Screen ---
 export default function AddOrEditProductScreen() {
+  const { effectiveTheme } = useTheme();
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
   const router = useRouter();
   const {
     addProduct,
@@ -259,7 +307,6 @@ export default function AddOrEditProductScreen() {
   useEffect(() => {
     if (isEditing && contextProducts.length > 0) {
       const productToEdit = contextProducts.find((p) => p.pid === params.pid);
-      console.log("Editing product:", productToEdit?.options);
       if (productToEdit) {
         setName(productToEdit.name);
         setDescription(productToEdit.description || "");
@@ -335,7 +382,11 @@ export default function AddOrEditProductScreen() {
           {options.map((option, optionIndex) => (
             <View
               key={optionIndex}
-              className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4"
+              style={{
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              }}
+              className="p-3 rounded-lg border mb-4"
             >
               <View className="flex-row justify-between items-center mb-2">
                 <View className="flex-1">
@@ -345,7 +396,13 @@ export default function AddOrEditProductScreen() {
                     onChangeText={(text) =>
                       handleOptionNameChange(text, optionIndex)
                     }
-                    className="p-2 border border-gray-300 rounded-md text-base bg-white h-11"
+                    placeholderTextColor={colors.placeholder}
+                    style={{
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    }}
+                    className="p-2 border rounded-md text-base h-11"
                   />
                 </View>
                 <TouchableOpacity
@@ -355,7 +412,10 @@ export default function AddOrEditProductScreen() {
                   <Ionicons name="trash-outline" size={22} color="#EF4444" />
                 </TouchableOpacity>
               </View>
-              <View className="pl-2 border-l-2 border-gray-200">
+              <View
+                style={{ borderLeftColor: colors.border }}
+                className="pl-2 border-l-2"
+              >
                 {option.values.map((value, valueIndex) => (
                   <View key={valueIndex} className="flex-row items-center my-1">
                     <View className="flex-1">
@@ -370,7 +430,13 @@ export default function AddOrEditProductScreen() {
                             "name"
                           )
                         }
-                        className="p-2 border border-gray-300 rounded-md text-base bg-white h-11"
+                        placeholderTextColor={colors.placeholder}
+                        style={{
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          color: colors.text,
+                        }}
+                        className="p-2 border rounded-md text-base h-11"
                       />
                     </View>
                     <View className="w-28 mx-2">
@@ -385,7 +451,13 @@ export default function AddOrEditProductScreen() {
                             "priceModifier"
                           )
                         }
-                        className="p-2 border border-gray-300 rounded-md text-base bg-white h-11 text-center"
+                        placeholderTextColor={colors.placeholder}
+                        style={{
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          color: colors.text,
+                        }}
+                        className="p-2 border rounded-md text-base text-center h-11"
                         keyboardType="numeric"
                       />
                     </View>
@@ -395,17 +467,21 @@ export default function AddOrEditProductScreen() {
                       <Ionicons
                         name="remove-circle-outline"
                         size={24}
-                        color="#9CA3AF"
+                        color={colors.tertiaryText}
                       />
                     </TouchableOpacity>
                   </View>
                 ))}
                 <TouchableOpacity
                   onPress={() => handleAddValue(optionIndex)}
-                  className="flex-row items-center mt-2 p-2 bg-gray-200 rounded-md"
+                  style={{ backgroundColor: colors.border }}
+                  className="flex-row items-center mt-2 p-2 rounded-md"
                 >
-                  <Ionicons name="add" size={20} color="#4B5563" />
-                  <Text className="ml-2 text-gray-700 font-semibold">
+                  <Ionicons name="add" size={20} color={colors.secondaryText} />
+                  <Text
+                    style={{ color: colors.secondaryText }}
+                    className="ml-2 font-semibold"
+                  >
                     Add Value
                   </Text>
                 </TouchableOpacity>
@@ -414,17 +490,25 @@ export default function AddOrEditProductScreen() {
           ))}
           <TouchableOpacity
             onPress={handleAddOption}
-            className="flex-row items-center justify-center p-3 mt-2 border-2 border-dashed border-primary-light rounded-lg"
+            style={{ borderColor: colors.accent }}
+            className="flex-row items-center justify-center p-3 mt-2 border-2 border-dashed rounded-lg"
           >
-            <Ionicons name="add-circle-outline" size={24} color="#2563EB" />
-            <Text className="text-primary-dark font-bold text-base ml-2">
+            <Ionicons
+              name="add-circle-outline"
+              size={24}
+              color={colors.accent}
+            />
+            <Text
+              style={{ color: colors.accent }}
+              className="font-bold text-base ml-2"
+            >
               Add a Product Option
             </Text>
           </TouchableOpacity>
         </View>
       );
     },
-    [options]
+    [options, colors]
   );
 
   const pickImage = async () => {
@@ -533,8 +617,6 @@ export default function AddOrEditProductScreen() {
         options,
       };
 
-      console.log(isEditing ? "Updating product..." : "Adding new product...");
-
       const success = isEditing
         ? await updateProduct(params.pid!, productData)
         : await addProduct(productData);
@@ -555,17 +637,18 @@ export default function AddOrEditProductScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack.Screen
         options={{ title: isEditing ? "Edit Product" : "List New Product" }}
       />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <FormSection title="Core Details">
+        <FormSection title="Core Details" effectiveTheme={effectiveTheme}>
           <FormInput
             label="Product Name"
             value={name}
             onChangeText={setName}
             placeholder="e.g., Regular Fit T-Shirt"
+            effectiveTheme={effectiveTheme}
           />
           <FormInput
             label="Description"
@@ -573,10 +656,11 @@ export default function AddOrEditProductScreen() {
             onChangeText={setDescription}
             placeholder="Describe your product's features, material, etc."
             multiline
+            effectiveTheme={effectiveTheme}
           />
         </FormSection>
 
-        <FormSection title="Pricing & Stock">
+        <FormSection title="Pricing & Stock" effectiveTheme={effectiveTheme}>
           <View className="flex-row gap-x-4">
             <View className="flex-1">
               <FormInput
@@ -585,6 +669,7 @@ export default function AddOrEditProductScreen() {
                 onChangeText={setPrice}
                 placeholder="29.99"
                 keyboardType="numeric"
+                effectiveTheme={effectiveTheme}
               />
             </View>
             <View className="flex-1">
@@ -594,21 +679,35 @@ export default function AddOrEditProductScreen() {
                 onChangeText={setStockQuantity}
                 placeholder="10"
                 keyboardType="number-pad"
+                effectiveTheme={effectiveTheme}
               />
             </View>
           </View>
         </FormSection>
 
-        <FormSection title="Categorization">
-          <CategoryInput value={category} onSelect={setCategory} />
+        <FormSection title="Categorization" effectiveTheme={effectiveTheme}>
+          <CategoryInput
+            value={category}
+            onSelect={setCategory}
+            effectiveTheme={effectiveTheme}
+          />
           <View className="mt-4">
-            <ConditionSelector value={condition} onSelect={setCondition} />
+            <ConditionSelector
+              value={condition}
+              onSelect={setCondition}
+              effectiveTheme={effectiveTheme}
+            />
           </View>
         </FormSection>
 
-        {/* --- [NEW] Options Section --- */}
-        <FormSection title="Product Variants / Options">
-          <Text className="text-sm text-gray-500 mb-3">
+        <FormSection
+          title="Product Variants / Options"
+          effectiveTheme={effectiveTheme}
+        >
+          <Text
+            style={{ color: colors.secondaryText }}
+            className="text-sm mb-3"
+          >
             Add options like size or color. You can adjust the price for each
             variant.
           </Text>
@@ -618,8 +717,11 @@ export default function AddOrEditProductScreen() {
           />
         </FormSection>
 
-        <FormSection title="Images">
-          <Text className="text-sm text-gray-500 mb-3">
+        <FormSection title="Images" effectiveTheme={effectiveTheme}>
+          <Text
+            style={{ color: colors.secondaryText }}
+            className="text-sm mb-3"
+          >
             Add up to 5 images. The first image will be the main one.
           </Text>
           <ScrollView
@@ -631,7 +733,8 @@ export default function AddOrEditProductScreen() {
               <View key={index} className="relative mr-2">
                 <Image
                   source={{ uri }}
-                  className="w-24 h-24 rounded-lg bg-gray-200"
+                  style={{ backgroundColor: colors.border }}
+                  className="w-24 h-24 rounded-lg"
                 />
                 <TouchableOpacity
                   onPress={() => removeImage(index)}
@@ -644,9 +747,13 @@ export default function AddOrEditProductScreen() {
             {images.length < 5 && (
               <TouchableOpacity
                 onPress={pickImage}
-                className="w-24 h-24 rounded-lg bg-gray-200 justify-center items-center border-2 border-dashed border-gray-400"
+                style={{
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                }}
+                className="w-24 h-24 rounded-lg justify-center items-center border-2 border-dashed"
               >
-                <Ionicons name="add" size={32} color="gray" />
+                <Ionicons name="add" size={32} color={colors.secondaryText} />
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -654,15 +761,24 @@ export default function AddOrEditProductScreen() {
 
         {isSubmitting && (
           <View className="my-2">
-            <Text className="text-center text-gray-600">
+            <Text
+              className="text-center"
+              style={{ color: colors.secondaryText }}
+            >
               {uploadProgress < 100
                 ? `Uploading... ${Math.round(uploadProgress)}%`
                 : "Saving product..."}
             </Text>
-            <View className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+            <View
+              style={{ backgroundColor: colors.border }}
+              className="w-full rounded-full h-2.5 mt-1"
+            >
               <View
-                className="bg-primary h-2.5 rounded-full"
-                style={{ width: `${uploadProgress}%` }}
+                className="h-2.5 rounded-full"
+                style={{
+                  width: `${uploadProgress}%`,
+                  backgroundColor: colors.accent,
+                }}
               ></View>
             </View>
           </View>
@@ -671,7 +787,8 @@ export default function AddOrEditProductScreen() {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={isSubmitting}
-          className={`bg-primary p-4 rounded-lg flex-row justify-center items-center mt-4 ${
+          style={{ backgroundColor: colors.accent }}
+          className={`p-4 rounded-lg flex-row justify-center items-center mt-4 ${
             isSubmitting ? "opacity-50" : ""
           }`}
         >

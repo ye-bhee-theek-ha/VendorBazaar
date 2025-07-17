@@ -20,5 +20,5 @@ export interface Order {
   status: OrderStatus;
   shippingAddress: Address;
   createdAt: Timestamp;
-  trackingNumber?: string;
+  paymentReference?: string;
 }

@@ -25,25 +25,44 @@ import { Link, Stack } from "expo-router";
 import { ListItem } from "../home";
 import { supabase } from "@/src/lib/supabase";
 import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { useTheme } from "@/src/context/ThemeContext";
+import { ProductCardSkeleton } from "@/src/helpers/skeletons";
 
 // A component for each saved item in the list
-const SavedItemCard = ({ product }: { product: Product }) => {
+const SavedItemCard = ({
+  product,
+  effectiveTheme,
+}: {
+  product: Product;
+  effectiveTheme: string;
+}) => {
   const { toggleLikeProduct } = useAuth();
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+
   return (
     <Link href={`/(customer)/home/${product.pid}`} asChild>
-      <TouchableOpacity className="flex-1 m-1.5">
-        <View className="">
+      <TouchableOpacity
+        className="flex-1 m-1.5 border rounded-lg shadow-md"
+        style={{
+          backgroundColor:
+            effectiveTheme === "dark" ? darkColors.input : lightColors.card,
+          borderColor: colors.border,
+          shadowColor: effectiveTheme === "dark" ? "#fff" : "#000",
+        }}
+      >
+        <View>
           <View className="relative">
             <TouchableOpacity
               onPress={() => toggleLikeProduct(product.pid)}
-              className="absolute top-3 right-3 p-1 rounded-lg bg-white shadow z-10"
+              style={{ backgroundColor: colors.card }}
+              className="absolute top-3 right-3 p-1  shadow z-10 rounded-md"
             >
               <Ionicons name={"heart"} size={24} color={"#ef4444"} />
             </TouchableOpacity>
             <Image
-              source={{
-                uri: product.imagesUrl[0],
-              }}
+              source={{ uri: product.imagesUrl[0] }}
+              style={{ backgroundColor: colors.border }}
               className="w-full aspect-square rounded-lg overflow-hidden"
               resizeMode="cover"
             />
@@ -51,12 +70,16 @@ const SavedItemCard = ({ product }: { product: Product }) => {
 
           <View className="p-3">
             <Text
-              className="text-btn_title font-bold text-black"
+              style={{ color: colors.text }}
+              className="text-text font-Fredoka_Medium"
               numberOfLines={1}
             >
               {product.name}
             </Text>
-            <Text className="text-sm font-medium text-grey mt-1">
+            <Text
+              style={{ color: colors.secondaryText }}
+              className="text-medium font-Fredoka_Regular mt-1"
+            >
               ${product.price.toFixed(2)}
             </Text>
           </View>
@@ -71,8 +94,7 @@ export default function SavedItemsScreen() {
   const [savedProducts, setSavedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  console.log(likedProductIds);
+  const { effectiveTheme } = useTheme();
 
   // Function to fetch products in chunks of 30 (Firestore 'in' query limit)
   const fetchSavedProducts = useCallback(async () => {
@@ -122,8 +144,16 @@ export default function SavedItemsScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={Array(4).fill(0)}
+          numColumns={2}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+          renderItem={() => (
+            <ProductCardSkeleton effectiveTheme={effectiveTheme} />
+          )}
+          contentContainerStyle={{ paddingHorizontal: 8 }}
+        />
       </View>
     );
   }
@@ -138,7 +168,7 @@ export default function SavedItemsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 ">
       <FlatList
         data={dataForList}
         numColumns={2}
@@ -147,7 +177,9 @@ export default function SavedItemsScreen() {
           if ("isPlaceholder" in item) {
             return <View className="flex-1 m-1.5" />;
           }
-          return <SavedItemCard product={item} />;
+          return (
+            <SavedItemCard product={item} effectiveTheme={effectiveTheme} />
+          );
         }}
         contentContainerStyle={{ paddingTop: 10 }}
         ListEmptyComponent={

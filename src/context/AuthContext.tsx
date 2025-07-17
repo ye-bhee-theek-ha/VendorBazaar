@@ -38,6 +38,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 interface AuthContextType {
   user: AppUser | null;
+  firebaseUser: User | null;
   loading: boolean;
   initialAuthLoading: boolean;
   likedProductIds: string[];
@@ -67,6 +68,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [likedProductIds, setLikedProductIds] = useState<string[]>([]);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [initialAuthLoading, setInitialAuthLoading] = useState<boolean>(true);
 
@@ -84,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setInitialAuthLoading(true);
-
+      setFirebaseUser(firebaseUser);
       try {
         if (firebaseUser) {
           // User is signed in
@@ -139,6 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           // User is signed out
           console.log("DEBUG: User is signed out.");
           setAppUser(null);
+          setFirebaseUser(null);
           setLikedProductIds([]);
         }
       } catch (error) {
@@ -146,6 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         await firebaseSignOut(auth);
         await GoogleSignin.signOut();
         setAppUser(null);
+        setFirebaseUser(null);
         setLikedProductIds([]);
       } finally {
         console.log("DEBUG: Initial auth loading complete.");
@@ -398,6 +402,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     <AuthContext.Provider
       value={{
         user: appUser,
+        firebaseUser,
         loading,
         initialAuthLoading,
         likedProductIds,

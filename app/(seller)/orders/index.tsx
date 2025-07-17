@@ -14,10 +14,19 @@ import { Link, Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Order } from "@/src/constants/types.order";
 import { useSellerOrders } from "@/src/context/seller/SellerOrderContext";
+import { StatusBar } from "expo-status-bar";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
 const TABS = ["New", "Processing", "Shipped", "Completed"];
 
-const OrderCard = ({ order }: { order: Order }) => {
+const OrderCard = ({
+  order,
+  effectiveTheme,
+}: {
+  order: Order;
+  effectiveTheme: "light" | "dark";
+}) => {
   const router = useRouter();
   const firstItem = order.items[0];
 
@@ -66,6 +75,8 @@ export default function SellerOrdersScreen() {
     loading,
     error,
   } = useSellerOrders();
+
+  const { effectiveTheme } = useTheme();
   const [activeTab, setActiveTab] = useState(TABS[0]);
 
   const dataMap = {
@@ -78,17 +89,9 @@ export default function SellerOrdersScreen() {
   const currentData = dataMap[activeTab as keyof typeof dataMap];
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: "Manage Orders",
-          headerTitleAlign: "center",
-          headerShadowVisible: false,
-        }}
-      />
-
+    <SafeAreaView className="flex-1">
       {/* Custom Tab Switcher */}
-      <View className="px-2 py-2">
+      <View className=" py-6">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -98,14 +101,42 @@ export default function SellerOrdersScreen() {
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              className={`py-2 px-4 rounded-full mr-2 ${
-                activeTab === tab ? "bg-indigo-600" : "bg-gray-200"
-              }`}
+              className={`py-2 px-4 rounded-full mr-2 border`}
+              style={{
+                backgroundColor:
+                  activeTab === tab
+                    ? effectiveTheme === "dark"
+                      ? darkColors.placeholder
+                      : lightColors.placeholder
+                    : effectiveTheme === "dark"
+                    ? darkColors.placeholder + "50"
+                    : lightColors.placeholder + "50",
+
+                borderColor:
+                  activeTab === tab
+                    ? effectiveTheme === "dark"
+                      ? darkColors.accent
+                      : lightColors.accent
+                    : "transparent",
+
+                shadowColor:
+                  effectiveTheme === "dark"
+                    ? darkColors.accent
+                    : lightColors.accent,
+              }}
             >
               <Text
-                className={`font-semibold ${
-                  activeTab === tab ? "text-white" : "text-gray-700"
-                }`}
+                className={` font-Fredoka_Medium text-medium overflow-x-visible `}
+                style={{
+                  color:
+                    activeTab === tab
+                      ? effectiveTheme === "dark"
+                        ? darkColors.text
+                        : lightColors.text
+                      : effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
               >
                 {tab}
               </Text>
@@ -123,14 +154,28 @@ export default function SellerOrdersScreen() {
           <Text className="text-red-500">{error}</Text>
         </View>
       ) : currentData.length === 0 ? (
-        <View className="flex-1 justify-center items-center">
-          <Ionicons name="receipt-outline" size={50} color="gray" />
-          <Text className="text-lg font-bold mt-4">No {activeTab} Orders</Text>
+        <View className="flex-1 justify-center items-center pb-10">
+          <Ionicons
+            name="receipt-outline"
+            size={50}
+            color={effectiveTheme ? darkColors.text : lightColors.text}
+          />
+          <Text
+            className="text-lg font-bold mt-4"
+            style={{
+              color:
+                effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            }}
+          >
+            No {activeTab} Orders
+          </Text>
         </View>
       ) : (
         <FlatList
           data={currentData}
-          renderItem={({ item }) => <OrderCard order={item} />}
+          renderItem={({ item }) => (
+            <OrderCard order={item} effectiveTheme={effectiveTheme} />
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 10, paddingBottom: 20 }}
         />

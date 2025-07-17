@@ -1,157 +1,209 @@
-// app/(customer)/account/orders/index.tsx
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
-  FlatList,
-  ActivityIndicator,
   SafeAreaView,
-  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
   Image,
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOrders } from "@/src/context/OrderContext";
-import { Order } from "@/src/constants/types.order";
+import { useTheme } from "@/src/context/ThemeContext";
+import { ColorPalette, darkColors, lightColors } from "@/src/constants/Colors";
+import { formatTimestamp } from "@/src/helpers/formatDate";
+import { ErrorState } from "@/src/helpers/skeletons";
 
-const OrderCard = ({ order }: { order: Order }) => {
+const StatusNode = ({
+  icon,
+  title,
+  subtitle,
+  isCompleted,
+  isLast,
+  colors,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  title: string;
+  subtitle: string;
+  isCompleted: boolean;
+  isLast: boolean;
+  colors: ColorPalette;
+}) => (
+  <View className="flex-row items-start">
+    {/* Vertical line */}
+    {!isLast && (
+      <View
+        className="absolute left-4 top-8 h-full w-0.5"
+        style={{ backgroundColor: isCompleted ? colors.accent : colors.border }}
+      />
+    )}
+    {/* Icon circle */}
+    <View
+      className="w-8 h-8 rounded-full items-center justify-center z-10"
+      style={{
+        backgroundColor: isCompleted ? colors.accent : colors.card,
+        borderColor: isCompleted ? colors.accent : colors.border,
+        borderWidth: 2,
+      }}
+    >
+      <Ionicons
+        name={icon}
+        size={16}
+        color={isCompleted ? colors.card : colors.secondaryText}
+      />
+    </View>
+    {/* Text content */}
+    <View className="ml-4 pb-8 flex-1">
+      <Text
+        className="text-base font-MuseoModerno_Bold"
+        style={{ color: isCompleted ? colors.text : colors.secondaryText }}
+      >
+        {title}
+      </Text>
+      <Text
+        className="text-sm font-MuseoModerno_Regular mt-1"
+        style={{ color: colors.secondaryText }}
+      >
+        {subtitle}
+      </Text>
+    </View>
+  </View>
+);
+
+export default function TrackOrderScreen() {
   const router = useRouter();
-  const isCompleted =
-    order.status === "Completed" || order.status === "Cancelled";
+  const { orderId } = useLocalSearchParams();
+  const { ongoingOrders, completedOrders, loading } = useOrders();
+  const { effectiveTheme } = useTheme();
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+
+  const order = useMemo(() => {
+    return [...ongoingOrders, ...completedOrders].find((o) => o.id === orderId);
+  }, [orderId, ongoingOrders, completedOrders]);
+
+  const orderStatusSteps = useMemo(() => {
+    const steps = [
+      {
+        status: "Paid",
+        icon: "receipt-outline",
+        title: "Order Confirmed",
+        subtitle: "Your order has been received.",
+      },
+      {
+        status: "Processing",
+        icon: "cube-outline",
+        title: "Processing",
+        subtitle: "Your order is being prepared.",
+      },
+      {
+        status: "Shipped",
+        icon: "airplane-outline",
+        title: "Shipped",
+        subtitle: "Your order is on its way.",
+      },
+      {
+        status: "Delivered",
+        icon: "checkmark-done-outline",
+        title: "Delivered",
+        subtitle: "Your order has been delivered.",
+      },
+    ];
+    const currentIndex = steps.findIndex(
+      (step) => step.status.toLowerCase() === order?.status.toLowerCase()
+    );
+    return steps.map((step, index) => ({
+      ...step,
+      isCompleted: index <= currentIndex,
+    }));
+  }, [order]);
+
+  if (loading) {
+    return (
+      <View
+        className="flex-1 justify-center items-center"
+        style={{ backgroundColor: colors.background }}
+      >
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <ErrorState
+        effectiveTheme={effectiveTheme}
+        error="Order not found."
+        onRetry={() => router.back()}
+      />
+    );
+  }
+
   const firstItem = order.items[0];
 
   return (
-    <View className="bg-white p-4 rounded-lg border border-gray-200 mb-3 mx-4">
-      <View className="flex-row items-center">
-        <Image
-          source={{
-            uri: firstItem.imagesUrl?.[0] || "https://placehold.co/100x100",
-          }}
-          className="w-16 h-16 rounded-md mr-4"
-        />
-        <View className="flex-1">
-          <Text className="text-base font-semibold" numberOfLines={1}>
-            {firstItem.name}
-          </Text>
-          {order.items.length > 1 && (
-            <Text className="text-sm text-gray-500">
-              and {order.items.length - 1} more
-            </Text>
-          )}
-          <Text className="text-lg font-bold mt-1">
-            ${order.total.toFixed(2)}
-          </Text>
-        </View>
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: colors.background }}
+    >
+      <Stack.Screen
+        options={{
+          title: "Track Order",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontFamily: "MuseoModerno_Bold" },
+        }}
+      />
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         <View
-          className={`px-2 py-1 rounded-full ${
-            isCompleted ? "bg-green-100" : "bg-blue-100"
-          }`}
+          className="p-4 mx-4 mt-4 rounded-lg"
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderWidth: 1,
+          }}
         >
-          <Text
-            className={`text-xs font-bold ${
-              isCompleted ? "text-green-800" : "text-blue-800"
-            }`}
-          >
-            {order.status}
-          </Text>
+          <View className="flex-row items-center">
+            <Image
+              source={{ uri: firstItem.imagesUrl?.[0] }}
+              className="w-16 h-16 rounded-md mr-4"
+              style={{ backgroundColor: colors.border }}
+            />
+            <View className="flex-1">
+              <Text
+                className="text-sm font-MuseoModerno_Regular"
+                style={{ color: colors.secondaryText }}
+              >
+                Order #{order.id.slice(-6)}
+              </Text>
+              <Text
+                className="text-base font-MuseoModerno_Bold mt-1"
+                style={{ color: colors.text }}
+                numberOfLines={1}
+              >
+                {firstItem.name}
+                {order.items.length > 1
+                  ? ` + ${order.items.length - 1} more`
+                  : ""}
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
-      <View className="flex-row justify-end mt-3">
-        {isCompleted ? (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/(customer)/account/orders/leave-review",
-                params: { orderId: order.id },
-              })
-            }
-            className="bg-black rounded-lg px-4 py-2"
-          >
-            <Text className="text-white font-semibold">Leave Review</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/(customer)/account/orders/track",
-                params: { orderId: order.id },
-              })
-            }
-            className="bg-primary rounded-lg px-4 py-2"
-          >
-            <Text className="text-white font-semibold">Track Order</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-};
 
-export default function MyOrdersScreen() {
-  const { ongoingOrders, completedOrders, loading, error } = useOrders();
-  const [activeTab, setActiveTab] = useState<"Ongoing" | "Completed">(
-    "Ongoing"
-  );
-
-  const data = activeTab === "Ongoing" ? ongoingOrders : completedOrders;
-
-  return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <Stack.Screen options={{ headerShown: false }} />
-
-      {/* Custom Tab Switcher */}
-      <View className="flex-row p-1 bg-gray-200 rounded-full mx-4 my-2">
-        <TouchableOpacity
-          onPress={() => setActiveTab("Ongoing")}
-          className={`flex-1 py-2 rounded-full ${
-            activeTab === "Ongoing" ? "bg-white shadow" : ""
-          }`}
-        >
-          <Text
-            className={`text-center font-semibold ${
-              activeTab === "Ongoing" ? "text-black" : "text-gray-500"
-            }`}
-          >
-            Ongoing
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab("Completed")}
-          className={`flex-1 py-2 rounded-full ${
-            activeTab === "Completed" ? "bg-white shadow" : ""
-          }`}
-        >
-          <Text
-            className={`text-center font-semibold ${
-              activeTab === "Completed" ? "text-black" : "text-gray-500"
-            }`}
-          >
-            Completed
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" />
+        <View className="p-4 mx-4 mt-4">
+          {orderStatusSteps.map((step, index) => (
+            <StatusNode
+              key={step.status}
+              icon={step.icon as React.ComponentProps<typeof Ionicons>["name"]}
+              title={step.title}
+              subtitle={step.subtitle}
+              isCompleted={step.isCompleted}
+              isLast={index === orderStatusSteps.length - 1}
+              colors={colors}
+            />
+          ))}
         </View>
-      ) : error ? (
-        <View className="flex-1 justify-center items-center p-5">
-          <Text className="text-red-500">{error}</Text>
-        </View>
-      ) : data.length === 0 ? (
-        <View className="flex-1 justify-center items-center">
-          <Ionicons name="file-tray-stacked-outline" size={50} color="gray" />
-          <Text className="text-lg font-bold mt-4">No {activeTab} Orders!</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={data}
-          renderItem={({ item }) => <OrderCard order={item} />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingTop: 10 }}
-        />
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

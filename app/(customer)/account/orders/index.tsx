@@ -1,4 +1,3 @@
-// app/(customer)/account/orders/index.tsx
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
@@ -14,263 +13,231 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Timestamp } from "firebase/firestore";
-import { useOrders } from "@/src/context/OrderContext";
 import { Order } from "@/src/constants/types.order";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-
-// Utility function to format timestamp
-const formatOrderDate = (createdAt: any) => {
-  if (!createdAt) {
-    return "Date not available";
-  }
-
-  let date: Date;
-
-  // Handle Firestore Timestamp
-  if (createdAt instanceof Timestamp) {
-    date = createdAt.toDate();
-  }
-  // Handle timestamp number (milliseconds)
-  else if (typeof createdAt === "number") {
-    date = new Date(createdAt);
-  }
-  // Handle timestamp object with seconds
-  else if (createdAt.seconds) {
-    date = new Date(createdAt.seconds * 1000);
-  }
-  // Handle regular Date object or date string
-  else {
-    date = new Date(createdAt);
-  }
-
-  // Check if date is invalid
-  if (isNaN(date.getTime())) {
-    return "Date not available";
-  }
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const orderDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
-  );
-
-  // If order is from today, show time
-  if (orderDate.getTime() === today.getTime()) {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  }
-
-  // If order is from previous days, show date
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  });
-};
+import { formatTimestamp } from "@/src/helpers/formatDate";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { useAuth } from "@/src/context/AuthContext";
+import { useOrders } from "@/src/context/OrderContext";
+import { ErrorState } from "@/src/helpers/skeletons";
 
 // Memoized Order Card Component
-const OrderCard = React.memo(({ order }: { order: Order }) => {
-  const router = useRouter();
-  const [imageLoading, setImageLoading] = useState(true);
+const OrderCard = React.memo(
+  ({ order, effectiveTheme }: { order: Order; effectiveTheme: string }) => {
+    const router = useRouter();
+    const [imageLoading, setImageLoading] = useState(true);
+    const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+    const { user } = useAuth();
 
-  const isCompleted = useMemo(
-    () => order.status === "Completed" || order.status === "Cancelled",
-    [order.status]
-  );
+    const isCompleted = useMemo(
+      () => order.status === "Delivered" || order.status === "Completed",
+      [order.status]
+    );
 
-  const firstItem = order.items[0];
-  const formattedDate = useMemo(
-    () => formatOrderDate(order.createdAt),
-    [order.createdAt]
-  );
+    const firstItem = order.items[0];
+    const formattedDate = useMemo(
+      () => formatTimestamp(order.createdAt),
+      [order.createdAt]
+    );
 
-  const handleTrackOrder = useCallback(() => {
-    router.push({
-      pathname: "/(customer)/account/orders/track",
-      params: { orderId: order.id },
-    });
-  }, [router, order.id]);
+    const handlePress = useCallback(() => {
+      router.push({
+        pathname: `/(customer)/account/orders/[orderId]`,
+        params: { orderId: order.id },
+      });
+    }, [router, order.id]);
 
-  const handleLeaveReview = useCallback(() => {
-    router.push({
-      pathname: "/(customer)/account/orders/leave-review",
-      params: { orderId: order.id },
-    });
-  }, [router, order.id]);
-
-  return (
-    <View className="bg-white p-4 rounded-lg border border-gray-200 mb-3 mx-4">
-      {/* Header with order date */}
-      <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-xs text-gray-500">
-          Order #{order.id.slice(-6)}
-        </Text>
-        <Text className="text-xs text-gray-500">{formattedDate}</Text>
-      </View>
-
-      <View className="flex-row items-center">
-        <View className="relative">
-          <Image
-            source={{ uri: firstItem.imagesUrl?.[0] }}
-            className="w-16 h-16 rounded-md mr-4"
-            onLoadStart={() => setImageLoading(true)}
-            onLoadEnd={() => setImageLoading(false)}
-          />
-          {imageLoading && (
-            <View className="absolute inset-0 justify-center items-center bg-gray-100 rounded-md mr-4">
-              <ActivityIndicator size="small" color="#666" />
-            </View>
-          )}
-        </View>
-
-        <View className="flex-1">
-          <Text className="text-base font-semibold" numberOfLines={1}>
-            {firstItem.name}
-          </Text>
-          {order.items.length > 1 && (
-            <Text className="text-sm text-gray-500">
-              and {order.items.length - 1} more item
-              {order.items.length > 2 ? "s" : ""}
-            </Text>
-          )}
-          <Text className="text-lg font-bold mt-1">
-            ${order.total.toFixed(2)}
-          </Text>
-        </View>
-
-        <View
-          className={`px-2 py-1 rounded-full ${
-            isCompleted ? "bg-green-100" : "bg-blue-100"
-          }`}
-        >
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        className="p-4 rounded-lg border mb-3 mx-4 shadow-sm"
+        style={{
+          borderColor: colors.border,
+          backgroundColor: colors.card,
+          shadowColor: effectiveTheme === "dark" ? "#fff" : "#000",
+        }}
+        activeOpacity={0.8}
+      >
+        {/* Header with order date */}
+        <View className="flex-row justify-between items-center mb-3">
           <Text
-            className={`text-xs font-bold ${
-              isCompleted ? "text-green-800" : "text-blue-800"
-            }`}
+            className="text-xs font-MuseoModerno_Regular"
+            style={{ color: colors.secondaryText }}
           >
-            {order.status}
+            Order #{order.id.slice(-6)}
+          </Text>
+          <Text
+            className="text-xs font-MuseoModerno_Regular"
+            style={{ color: colors.secondaryText }}
+          >
+            {formattedDate}
           </Text>
         </View>
-      </View>
 
-      <View className="flex-row justify-end mt-3">
-        {isCompleted ? (
-          <TouchableOpacity
-            onPress={handleLeaveReview}
-            className="bg-black rounded-lg px-4 py-2"
-            activeOpacity={0.8}
-          >
-            <Text className="text-white font-semibold">Leave Review</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            onPress={handleTrackOrder}
-            className="bg-primary rounded-lg px-4 py-2"
-            activeOpacity={0.8}
-          >
-            <Text className="text-white font-semibold">Track Order</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-});
+        <View className="flex-row items-center">
+          <View className="relative">
+            <Image
+              source={{
+                uri: firstItem.imagesUrl?.[0],
+              }}
+              className="w-16 h-16 rounded-md mr-4"
+              style={{ backgroundColor: colors.border }}
+              onLoadStart={() => setImageLoading(true)}
+              onLoadEnd={() => setImageLoading(false)}
+            />
+            {imageLoading && (
+              <View
+                className="absolute inset-0 justify-center items-center rounded-md mr-4"
+                style={{ backgroundColor: colors.border }}
+              >
+                <ActivityIndicator size="small" color={colors.secondaryText} />
+              </View>
+            )}
+          </View>
 
-// Custom Hook for filtering and sorting orders
-const useFilteredOrders = (
-  ongoingOrders: Order[],
-  completedOrders: Order[],
-  activeTab: string
-) => {
-  return useMemo(() => {
-    const orders = activeTab === "Ongoing" ? ongoingOrders : completedOrders;
-    // Sort by creation date (newest first)
-    return orders.sort((a, b) => {
-      const getTimestamp = (createdAt: any) => {
-        if (!createdAt) return 0;
+          <View className="flex-1">
+            <View className="flex-row justify-start items-center mb-1 gap-2">
+              <Text
+                className="text-btn_title font-MuseoModerno_SemiBold"
+                style={{ color: colors.text }}
+                numberOfLines={1}
+              >
+                {firstItem.name}
+              </Text>
+              <View
+                className={`px-2 py-0.5 border rounded-full`}
+                style={{
+                  backgroundColor: isCompleted
+                    ? `${colors.accent}20`
+                    : `${colors.accent}20`,
+                  borderColor:
+                    effectiveTheme === "dark"
+                      ? colors.border
+                      : colors.background,
+                }}
+              >
+                <Text
+                  className={`text-extra_small font-MuseoModerno_Bold capitalize`}
+                  style={{
+                    color: isCompleted
+                      ? colors.secondaryText
+                      : colors.secondaryText,
+                  }}
+                >
+                  {order.status}
+                </Text>
+              </View>
+            </View>
 
-        if (createdAt instanceof Timestamp) {
-          return createdAt.toMillis();
-        }
-        if (typeof createdAt === "number") {
-          return createdAt;
-        }
-        if (createdAt.seconds) {
-          return createdAt.seconds * 1000;
-        }
-        return new Date(createdAt).getTime() || 0;
-      };
+            {order.items.length > 1 && (
+              <Text
+                className="text-sm font-MuseoModerno_Regular"
+                style={{ color: colors.secondaryText }}
+              >
+                and {order.items.length - 1} more item
+                {order.items.length > 2 ? "s" : ""}
+              </Text>
+            )}
+            <Text
+              className="text-lg font-MuseoModerno_Bold mt-1"
+              style={{ color: colors.text }}
+            >
+              ${order.total.toFixed(2)}
+            </Text>
+          </View>
 
-      return getTimestamp(b.createdAt) - getTimestamp(a.createdAt);
-    });
-  }, [ongoingOrders, completedOrders, activeTab]);
-};
+          <View className="flex-row items-end gap-2 h-full">
+            <TouchableOpacity
+              onPress={() => {
+                router.push({
+                  pathname: `/(customer)/account/orders/track`,
+                  params: { orderId: order.id },
+                });
+              }}
+              className={`px-4 py-1 border rounded-lg`}
+              style={{
+                backgroundColor: isCompleted
+                  ? `${colors.accent}90`
+                  : `${colors.accent}90`,
+                borderColor: colors.accent,
+              }}
+            >
+              <Text
+                className={`text-medium font-MuseoModerno_Bold capitalize`}
+                style={{
+                  color: effectiveTheme === "dark" ? colors.text : colors.text,
+                }}
+              >
+                Track Order
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+);
 
 // Main Component
 export default function MyOrdersScreen() {
-  const { ongoingOrders, completedOrders, loading, error, refetch } =
-    useOrders();
+  const { ongoingOrders, completedOrders, loading, error } = useOrders();
   const [activeTab, setActiveTab] = useState<"Ongoing" | "Completed">(
     "Ongoing"
   );
   const [refreshing, setRefreshing] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
+  const { user } = useAuth();
+  const { effectiveTheme } = useTheme();
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
 
   const translateX = useSharedValue(0);
 
-  const data = useFilteredOrders(ongoingOrders, completedOrders, activeTab);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refetch?.();
-    } catch (err) {
-      console.error("Failed to refresh orders:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refetch]);
+  const data = activeTab === "Ongoing" ? ongoingOrders : completedOrders;
 
   const renderEmptyState = useCallback(
     () => (
-      <View className="flex-1 justify-center items-center px-6">
+      <View className="flex-1 justify-center items-center px-6 mt-20">
         <Ionicons
           name={
             activeTab === "Ongoing"
-              ? "time-outline"
-              : "checkmark-circle-outline"
+              ? "hourglass-outline"
+              : "checkmark-done-circle-outline"
           }
           size={50}
-          color="gray"
+          color={colors.tertiaryText}
         />
-        <Text className="text-lg font-bold mt-4 text-center">
+        <Text
+          className="text-lg font-MuseoModerno_Bold mt-4 text-center"
+          style={{ color: colors.secondaryText }}
+        >
           No {activeTab} Orders!
         </Text>
-        <Text className="text-sm text-gray-500 mt-2 text-center">
+        <Text
+          className="text-sm font-MuseoModerno_Regular mt-2 text-center"
+          style={{ color: colors.tertiaryText }}
+        >
           {activeTab === "Ongoing"
-            ? "Your active orders will appear here"
-            : "Your completed orders will appear here"}
+            ? "Your active orders and sales will appear here."
+            : "Your completed orders and sales will be archived here."}
         </Text>
       </View>
     ),
-    [activeTab]
+    [activeTab, colors]
   );
 
   const renderOrderItem = useCallback(
-    ({ item }: { item: Order }) => <OrderCard order={item} />,
-    []
+    ({ item }: { item: Order }) => (
+      <OrderCard order={item} effectiveTheme={effectiveTheme} />
+    ),
+    [effectiveTheme]
   );
 
-  const tabWidth = containerWidth ? (containerWidth - 4) / 2 : 0; // Subtract padding from container
+  const tabWidth = containerWidth ? (containerWidth - 4) / 2 : 0;
 
   useEffect(() => {
     if (tabWidth > 0) {
@@ -280,11 +247,9 @@ export default function MyOrdersScreen() {
     }
   }, [activeTab, tabWidth, translateX]);
 
-  const animatedPillStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
+  const animatedPillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   const onContainerLayout = (event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
@@ -292,10 +257,18 @@ export default function MyOrdersScreen() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <SafeAreaView
+        className="flex-1"
+        style={{ backgroundColor: colors.background }}
+      >
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" />
-          <Text className="mt-2 text-gray-500">Loading orders...</Text>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text
+            className="mt-2 font-MuseoModerno_Regular"
+            style={{ color: colors.secondaryText }}
+          >
+            Loading orders...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -303,26 +276,22 @@ export default function MyOrdersScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-1 justify-center items-center p-5">
-          <Ionicons name="alert-circle-outline" size={50} color="#ef4444" />
-          <Text className="text-red-500 text-center mt-2">{error}</Text>
-          <TouchableOpacity
-            onPress={onRefresh}
-            className="mt-4 bg-primary px-4 py-2 rounded-lg"
-          >
-            <Text className="text-white font-semibold">Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <ErrorState
+        effectiveTheme={effectiveTheme}
+        error="Failed to load orders. Please try again."
+        onRetry={() => {}}
+      />
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Tab Switcher - keeping original design */}
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: colors.background }}
+    >
       <View
-        className="flex-row p-1 bg-gray-200 rounded-full mx-4 my-2"
+        className="flex-row p-1 rounded-full mx-4 my-2"
+        style={{ backgroundColor: colors.card }}
         onLayout={onContainerLayout}
       >
         {containerWidth > 0 && (
@@ -331,62 +300,53 @@ export default function MyOrdersScreen() {
               {
                 position: "absolute",
                 left: 2,
-                alignSelf: "center",
-                height: "100%",
-                backgroundColor: "white",
+                top: 2,
+                bottom: 2,
                 borderRadius: 9999,
+                width: tabWidth,
+                backgroundColor: colors.background,
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.2,
+                shadowOpacity: 0.1,
                 shadowRadius: 1.41,
                 elevation: 2,
               },
-              { width: tabWidth },
               animatedPillStyle,
             ]}
           />
         )}
         <TouchableOpacity
           onPress={() => setActiveTab("Ongoing")}
-          style={{
-            flex: 1,
-            paddingVertical: 8,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="flex-1 py-2 items-center justify-center"
           activeOpacity={0.7}
         >
           <Text
-            style={[
-              { textAlign: "center", fontWeight: "600", color: "#6B7280" },
-              activeTab === "Ongoing" && { color: "black" },
-            ]}
+            className="font-MuseoModerno_SemiBold"
+            style={{
+              color:
+                activeTab === "Ongoing" ? colors.text : colors.secondaryText,
+            }}
           >
             Ongoing ({ongoingOrders.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab("Completed")}
-          style={{
-            flex: 1,
-            paddingVertical: 8,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="flex-1 py-2 items-center justify-center"
           activeOpacity={0.7}
         >
           <Text
-            style={[
-              { textAlign: "center", fontWeight: "600", color: "#6B7280" },
-              activeTab === "Completed" && { color: "black" },
-            ]}
+            className="font-MuseoModerno_SemiBold"
+            style={{
+              color:
+                activeTab === "Completed" ? colors.text : colors.secondaryText,
+            }}
           >
             Completed ({completedOrders.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Orders List */}
       {data.length === 0 ? (
         renderEmptyState()
       ) : (
@@ -398,15 +358,11 @@ export default function MyOrdersScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#007AFF"]}
-              tintColor="#007AFF"
+              colors={[colors.accent]}
+              tintColor={colors.accent}
             />
           }
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          windowSize={10}
         />
       )}
     </SafeAreaView>

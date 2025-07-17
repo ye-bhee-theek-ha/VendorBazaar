@@ -1,4 +1,4 @@
-// app/(customer)/cart.tsx
+// app/(customer)/cart/index.tsx
 import React from "react";
 import {
   View,
@@ -8,27 +8,79 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { useCart } from "@/src/context/CartContext";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { CartItem } from "@/src/constants/types.product";
+import {
+  CartItem,
+  ProductOption,
+  ProductOptionValue,
+} from "@/src/constants/types.product";
+import { ErrorState, ProductCardSkeleton } from "@/src/helpers/skeletons";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
-const CartListItem = ({ item }: { item: CartItem }) => {
+const CartListItem = ({
+  item,
+  effectiveTheme,
+}: {
+  item: CartItem;
+  effectiveTheme: string;
+}) => {
   const { updateQuantity, removeFromCart } = useCart();
 
   return (
-    <View className="flex-row items-center bg-white p-3 rounded-lg border border-gray-200 mb-3 mx-4">
+    <View
+      className="flex-row items-center p-3 rounded-lg border mb-3 mx-4 shadow-md"
+      style={{
+        backgroundColor:
+          effectiveTheme === "dark" ? darkColors.input : lightColors.card,
+        borderColor:
+          effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+        shadowColor: effectiveTheme === "dark" ? "#fff" : "#000",
+      }}
+    >
       <Image
         source={{ uri: item.imagesUrl?.[0] || "https://placehold.co/100x100" }}
         className="w-20 h-20 rounded-md mr-4"
       />
       <View className="flex-1">
-        <Text className="text-base font-semibold" numberOfLines={1}>
+        <Text
+          className="text-text font-MuseoModerno_SemiBold"
+          numberOfLines={1}
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
           {item.name}
         </Text>
-        <Text className="text-sm text-gray-500 mb-1">Size L</Text>
-        <Text className="text-lg font-bold">${item.price.toFixed(2)}</Text>
+        {item.selectedOptions && (
+          <Text
+            className="text-small font-MuseoModerno_Regular mb-1"
+            style={{
+              color:
+                effectiveTheme === "dark"
+                  ? darkColors.tertiaryText
+                  : lightColors.tertiaryText,
+            }}
+          >
+            {Object.values(item.selectedOptions || {})
+              .map((option) => option.name)
+              .join(", ") || "No options selected"}
+          </Text>
+        )}
+        <Text
+          className="text-text font-MuseoModerno_SemiBold"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
+          ${item.price.toFixed(2)}
+        </Text>
       </View>
       <View className="items-center">
         <TouchableOpacity
@@ -58,45 +110,47 @@ const CartListItem = ({ item }: { item: CartItem }) => {
 };
 
 export default function CartScreen() {
-  const { cartItems, loading, error, cartSubtotal, initiatePayment } =
+  const { cartItems, loading, error, cartSubtotal, initiatePayment, isPaying } =
     useCart();
   const router = useRouter();
+  const { effectiveTheme } = useTheme();
 
-  const SHIPPING_FEE = 80.0; // Example shipping fee
-  const VAT_RATE = 0.0; // Example VAT
+  const SHIPPING_FEE = 80.0;
+  const VAT_RATE = 0.0;
   const total = cartSubtotal * (1 + VAT_RATE) + SHIPPING_FEE;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: "My Cart",
-          headerShadowVisible: false,
-          headerTitleAlign: "center",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} className="ml-4">
-              <Ionicons name="arrow-back" size={24} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity className="mr-4">
-              <Ionicons name="notifications-outline" size={24} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+    <SafeAreaView className="flex-1 ">
       {loading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" />
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={Array(6).fill(0)} // Render 6 skeleton items
+            numColumns={2}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => (
+              <ProductCardSkeleton effectiveTheme={effectiveTheme} />
+            )}
+            contentContainerStyle={{ paddingHorizontal: 8 }}
+          />
         </View>
       ) : error ? (
-        <View className="flex-1 justify-center items-center p-5">
-          <Text className="text-red-500">{error}</Text>
-        </View>
+        <ErrorState
+          error={error}
+          onRetry={() => {}}
+          effectiveTheme={effectiveTheme}
+        />
       ) : cartItems.length === 0 ? (
         <View className="flex-1 justify-center items-center">
           <Ionicons name="cart-outline" size={60} color="gray" />
-          <Text className="text-xl font-bold mt-4">Your Cart is Empty</Text>
+          <Text
+            className="text-heading font-MuseoModerno_SemiBold mt-4"
+            style={{
+              color:
+                effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            }}
+          >
+            Your Cart is Empty
+          </Text>
           <Text className="text-gray-500 mt-2">
             Looks like you haven't added anything yet.
           </Text>
@@ -105,50 +159,173 @@ export default function CartScreen() {
         <View className="flex-1">
           <FlatList
             data={cartItems}
-            renderItem={({ item }) => <CartListItem item={item} />}
+            renderItem={({ item }) => (
+              <CartListItem item={item} effectiveTheme={effectiveTheme} />
+            )}
             keyExtractor={(item) => item.pid}
-            contentContainerStyle={{ paddingTop: 10, paddingBottom: 250 }} // Padding to not hide last item
+            contentContainerStyle={{ paddingTop: 10, paddingBottom: 250 }}
           />
           {/* Summary Section */}
-          <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pt-5 rounded-t-2xl">
+          <View
+            className="absolute bottom-0 left-0 right-0 border-t p-4 pt-5 rounded-t-2xl"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+              borderColor:
+                effectiveTheme === "dark"
+                  ? darkColors.border
+                  : lightColors.border,
+            }}
+          >
             <View className="flex-row justify-between mb-2">
-              <Text className="text-gray-600 text-base">Sub-total</Text>
-              <Text className="text-gray-800 font-semibold text-base">
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
+                Sub-total
+              </Text>
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
                 ${cartSubtotal.toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
-              <Text className="text-gray-600 text-base">VAT (%)</Text>
-              <Text className="text-gray-800 font-semibold text-base">
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
+                VAT (%)
+              </Text>
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
                 ${(cartSubtotal * VAT_RATE).toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between mb-4">
-              <Text className="text-gray-600 text-base">Shipping fee</Text>
-              <Text className="text-gray-800 font-semibold text-base">
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
+                Shipping fee
+              </Text>
+              <Text
+                className="text-medium font-Fredoka_Medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.secondaryText
+                      : lightColors.secondaryText,
+                }}
+              >
                 ${SHIPPING_FEE.toFixed(2)}
               </Text>
             </View>
-            <View className="h-px bg-gray-200 my-2" />
+
+            <View
+              className="h-px my-2"
+              style={{
+                backgroundColor:
+                  effectiveTheme === "dark"
+                    ? darkColors.text + "50"
+                    : lightColors.text + "50",
+              }}
+            />
+
             <View className="flex-row justify-between mt-2 mb-5">
-              <Text className="text-gray-800 text-lg font-bold">Total</Text>
-              <Text className="text-gray-800 font-bold text-lg">
+              <Text
+                className=" text-large font-Fredoka_SemiBold"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.text
+                      : lightColors.text,
+                }}
+              >
+                Total
+              </Text>
+              <Text
+                className="text-large font-Fredoka_SemiBold"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.text
+                      : lightColors.text,
+                }}
+              >
                 ${total.toFixed(2)}
               </Text>
             </View>
+
+            {/* --- Updated Checkout Button --- */}
             <TouchableOpacity
-              className="bg-black rounded-full p-4 flex-row justify-center items-center"
-              onPress={initiatePayment}
+              className=" rounded-full p-4 flex-row justify-center items-center"
+              style={{
+                backgroundColor:
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.accent,
+                opacity: isPaying ? 0.7 : 1, // Dim button when loading
+              }}
+              onPress={() => router.push("/(customer)/cart/checkout")}
+              disabled={isPaying} // Disable button when processing
             >
-              <Text className="text-white text-lg font-semibold">
-                Go To Checkout
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="white"
-                className="ml-2"
-              />
+              {isPaying ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text
+                    className="text-lg font-semibold"
+                    style={{
+                      color:
+                        effectiveTheme === "dark"
+                          ? darkColors.background
+                          : lightColors.background,
+                    }}
+                  >
+                    Go To Checkout
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    style={{
+                      marginLeft: 8,
+                      color:
+                        effectiveTheme === "dark"
+                          ? darkColors.background
+                          : lightColors.background,
+                    }}
+                  />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -156,38 +333,3 @@ export default function CartScreen() {
     </SafeAreaView>
   );
 }
-
-// import React from "react";
-// import { Button, View } from "react-native";
-// import { usePaystack } from "react-native-paystack-webview";
-
-// const Checkout = () => {
-//   const { popup } = usePaystack();
-
-//   const payNow = () => {
-//     popup.checkout({
-//       email: "jane.doe@example.com",
-//       amount: 5000,
-//       reference: "TXN_123456",
-//       invoice_limit: 3,
-//       split: {
-//         type: "percentage",
-//         bearer_type: "account",
-//         subaccounts: [{ subaccount: "ACCT_ukoaf6gyp3icmxj", share: "40" }],
-//       },
-
-//       onSuccess: (res) => console.log("Success:", res),
-//       onCancel: () => console.log("User cancelled"),
-//       onLoad: (res) => console.log("WebView Loaded:", res),
-//       onError: (err) => console.log("WebView Error:", err),
-//     });
-//   };
-
-//   return (
-//     <View className="flex-1 min-h-screen justify-center items-center bg-gray-400">
-//       <Button title="Pay Now" onPress={payNow} />
-//     </View>
-//   );
-// };
-
-// export default Checkout;

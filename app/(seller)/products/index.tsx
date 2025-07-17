@@ -14,14 +14,30 @@ import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSellerProducts } from "@/src/context/seller/SellerProductContext";
 import { Product } from "@/src/constants/types.product";
+import { StatusBar } from "expo-status-bar";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { useTheme } from "@/src/context/ThemeContext";
 
-const ProductListItem = ({ item }: { item: Product }) => {
+const ProductListItem = ({
+  item,
+  effectiveTheme,
+}: {
+  item: Product;
+  effectiveTheme: string;
+}) => {
   const router = useRouter();
   return (
     <TouchableOpacity
       onPress={() => router.push(`/(seller)/products/${item.pid}`)}
-      className="flex-row mx-6 my-2 rounded-lg border items-center bg-white p-3 shadow-sm"
-      style={{ elevation: 1, borderColor: "#e0e0e0" }}
+      className="flex-row mx-6 my-2 rounded-lg border items-center p-3 shadow-lg"
+      style={{
+        elevation: 1,
+        shadowColor: effectiveTheme === "dark" ? "#fff" : "#000",
+        borderColor:
+          effectiveTheme === "dark" ? darkColors.accent : lightColors.border,
+        backgroundColor:
+          effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+      }}
     >
       <Image
         source={{ uri: item.imagesUrl?.[0] }}
@@ -37,24 +53,64 @@ const ProductListItem = ({ item }: { item: Product }) => {
             gap: 2,
           }}
         >
-          <Text className="text-btn_title font-semibold" numberOfLines={1}>
+          <Text
+            className="text-btn_title font-Fredoka_SemiBold"
+            style={{
+              color:
+                effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+            }}
+            numberOfLines={1}
+          >
             {item.name}
           </Text>
 
-          <Text className="text-sm text-gray-600" numberOfLines={2}>
+          <Text
+            className="text-sm font-Fredoka_Regular"
+            style={{
+              color:
+                effectiveTheme === "dark"
+                  ? darkColors.secondaryText
+                  : lightColors.secondaryText,
+            }}
+            numberOfLines={2}
+          >
             {item.category || "No category."}
           </Text>
 
-          <Text className="text-btn_title font-bold text-primary mt-1">
+          <Text
+            className="text-btn_title font-Fredoka_SemiBold mt-1"
+            style={{
+              color:
+                effectiveTheme === "dark"
+                  ? darkColors.text
+                  : lightColors.accent,
+            }}
+          >
             ${item.price.toFixed(2)}
           </Text>
         </View>
 
-        <Text className="text-sm text-gray-500 h-full self-end mr-4">
+        <Text
+          className="text-sm h-full self-end mr-4"
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+        >
           Stock: {item.stockQuantity}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={24} color="gray" />
+      <Ionicons
+        name="chevron-forward"
+        size={24}
+        color={
+          effectiveTheme === "dark"
+            ? darkColors.secondaryText
+            : lightColors.secondaryText
+        }
+      />
     </TouchableOpacity>
   );
 };
@@ -64,6 +120,8 @@ export default function SellerProductsScreen() {
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
+  const { effectiveTheme } = useTheme();
+
   const onRefresh = React.useCallback(async () => {
     setIsRefreshing(true);
     await fetchProducts();
@@ -72,21 +130,6 @@ export default function SellerProductsScreen() {
 
   return (
     <SafeAreaView className="flex-1">
-      <Stack.Screen
-        options={{
-          title: "My Products",
-          headerTitleAlign: "center",
-          headerShadowVisible: false,
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => router.push("/(seller)/products/add")}
-              className="mr-4"
-            >
-              <Ionicons name="add-circle" size={28} color="#0b6623" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
       {loading && products.length === 0 ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" />
@@ -98,13 +141,42 @@ export default function SellerProductsScreen() {
       ) : (
         <FlatList
           data={products}
-          renderItem={({ item }) => <ProductListItem item={item} />}
+          renderItem={({ item }) => (
+            <ProductListItem item={item} effectiveTheme={effectiveTheme} />
+          )}
           keyExtractor={(item) => item.pid}
+          contentContainerStyle={{ paddingVertical: 20 }}
           ListEmptyComponent={
-            <View className="flex-1 justify-center items-center mt-20">
-              <Ionicons name="cube-outline" size={50} color="gray" />
-              <Text className="text-lg font-bold mt-4">No Products Yet</Text>
-              <Text className="text-gray-500 mt-1">
+            <View className="flex-1  justify-center items-center mt-60">
+              <Ionicons
+                name="cube-outline"
+                size={50}
+                color={
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.secondaryText
+                }
+              />
+              <Text
+                className="mt-4 font-Fredoka_SemiBold text-text"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.text
+                      : lightColors.text,
+                }}
+              >
+                No Products Yet
+              </Text>
+              <Text
+                className="mt-1 font-Fredoka_Regular text-medium"
+                style={{
+                  color:
+                    effectiveTheme === "dark"
+                      ? darkColors.tertiaryText
+                      : lightColors.tertiaryText,
+                }}
+              >
                 Tap the '+' to add your first product.
               </Text>
             </View>

@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNotifications } from "@/src/context/NotificationContext";
 import { Timestamp } from "firebase/firestore";
 import { Notification } from "@/src/constants/types.user";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
 const NOTIFICATION_ICONS: {
   [key: string]: React.ComponentProps<typeof Ionicons>["name"];
@@ -52,29 +54,66 @@ const getRelativeDate = (timestamp: Timestamp): string => {
 };
 
 // --- Components ---
-const NotificationItem = ({ item }: { item: Notification }) => {
+const NotificationItem = ({
+  item,
+  effectiveTheme,
+}: {
+  item: Notification;
+  effectiveTheme: string;
+}) => {
   const iconName = NOTIFICATION_ICONS[item.type] || NOTIFICATION_ICONS.default;
   const { markAsRead } = useNotifications();
   return (
     <TouchableOpacity
       className={`flex-row items-center p-4 ${
-        !item.read ? "bg-blue-50" : "bg-white"
+        !item.read ? "bg-primary/20" : ""
       }`}
       onPress={() => {
         markAsRead({ id: item.id });
       }}
     >
-      <View className="p-3 bg-gray-100 rounded-full mr-4">
-        <Ionicons name={iconName} size={24} color="#4B5563" />
+      <View
+        className="p-3 rounded-full mr-4"
+        style={{
+          backgroundColor:
+            item.read && effectiveTheme === "dark"
+              ? darkColors.text + "10"
+              : item.read && effectiveTheme === "light"
+              ? lightColors.text + "10"
+              : "transparent",
+        }}
+      >
+        <Ionicons
+          name={iconName}
+          size={24}
+          color={effectiveTheme === "dark" ? darkColors.text : lightColors.text}
+        />
       </View>
       <View className="flex-1">
-        <Text className="text-base font-semibold text-gray-800">
+        <Text
+          className="text-text font-Fredoka_Medium"
+          style={
+            effectiveTheme === "dark"
+              ? { color: darkColors.text }
+              : { color: lightColors.text }
+          }
+        >
           {item.title}
         </Text>
-        <Text className="text-sm text-gray-500">{item.message}</Text>
+        <Text
+          className="text-md font-Fredoka_Regular "
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+        >
+          {item.message}
+        </Text>
       </View>
       {!item.read && (
-        <View className="w-2.5 h-2.5 bg-blue-500 rounded-full ml-4" />
+        <View className="w-2.5 h-2.5 bg-primary rounded-full ml-4" />
       )}
     </TouchableOpacity>
   );
@@ -84,6 +123,8 @@ const NotificationItem = ({ item }: { item: Notification }) => {
 export default function NotificationsModal() {
   const { notifications, loading, error, loadMoreNotifications, hasMore } =
     useNotifications();
+
+  const { effectiveTheme } = useTheme();
 
   const sections = React.useMemo(() => {
     if (!notifications) return [];
@@ -105,7 +146,7 @@ export default function NotificationsModal() {
 
   if (loading && notifications.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
+      <View className="flex-1 justify-center items-center">
         <ActivityIndicator size="large" />
       </View>
     );
@@ -113,7 +154,7 @@ export default function NotificationsModal() {
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center p-5 bg-gray-50">
+      <View className="flex-1 justify-center items-center p-5">
         <Ionicons name="cloud-offline-outline" size={40} color="red" />
         <Text className="text-red-500 text-center mt-4">{error}</Text>
       </View>
@@ -122,14 +163,28 @@ export default function NotificationsModal() {
 
   if (sections.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center p-5 bg-gray-50">
+      <View className="flex-1 justify-center items-center p-5 ">
         <View className="p-5 bg-gray-200 rounded-full mb-4">
           <Ionicons name="notifications-off-outline" size={40} color="gray" />
         </View>
-        <Text className="text-xl font-bold text-gray-700">
+        <Text
+          className="text-xl font-bold "
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
           You haven't gotten any notifications yet!
         </Text>
-        <Text className="text-base text-gray-500 mt-2 text-center">
+        <Text
+          className="text-base  mt-2 text-center"
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+        >
           We'll alert you when something cool happens.
         </Text>
       </View>
@@ -140,14 +195,29 @@ export default function NotificationsModal() {
     <SectionList
       sections={sections}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <NotificationItem item={item} />}
+      renderItem={({ item }) => (
+        <NotificationItem item={item} effectiveTheme={effectiveTheme} />
+      )}
+      className=""
       renderSectionHeader={({ section: { title } }) => (
-        <Text className="px-4 py-2 text-sm font-bold text-gray-500 bg-gray-100">
+        <Text
+          className="px-4 py-2 text-sm font-bold "
+          style={{
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.text + "20"
+                : lightColors.text + "20",
+
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
           {title}
         </Text>
       )}
-      ItemSeparatorComponent={() => <View className="h-px bg-gray-200 ml-20" />}
-      className="bg-white"
+      ItemSeparatorComponent={() => (
+        <View className="h-[4px] bg-gray-200 ml-20" />
+      )}
       onEndReached={() => {
         if (hasMore && !loading) {
           loadMoreNotifications();

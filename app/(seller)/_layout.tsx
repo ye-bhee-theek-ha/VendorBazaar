@@ -6,10 +6,14 @@ import { View, Text } from "react-native";
 import { useAuth } from "../../src/context/AuthContext"; // Adjust path
 import { SellerDashboardProvider } from "@/src/context/seller/SellerDashboardContext";
 import { SellerOrderProvider } from "@/src/context/seller/SellerOrderContext";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { SellerProductProvider } from "@/src/context/seller/SellerProductContext";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
-// Example Custom Header (can be moved to components/common/CustomHeader.tsx)
 const CustomHeader = ({
   title,
   showHeader,
@@ -31,31 +35,17 @@ function SellerTabLayout() {
   const segments = useSegments(); // e.g. ['(tabs)', 'home', 'messaging', 'chatId123']
 
   if (initialAuthLoading) {
-    return null; // Or a loading spinner, Splash screen should cover this
+    return null;
   }
 
   if (!user) {
-    // Safe guard: if user is not authenticated, redirect to login
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Determine if the bottom tab bar should be visible
-  // Hide on specific sub-pages like a chat screen
-  const hideTabBarForRoutes = ["/(seller)/home/messaging/"];
+  const { effectiveTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
-  let isTabBarVisible = true;
-  // Check if the current path starts with any of the paths in hideTabBarForRoutes
-  // For example, if current path is '/(tabs)/home/messaging/chat123'
-  // and hideTabBarForRoutes contains '/(tabs)/home/messaging/', it will hide.
-  if (
-    segments.length > 2 &&
-    segments[0] === "(seller)" &&
-    segments[1] === "home" &&
-    segments[2] === "messaging" &&
-    segments[3]
-  ) {
-    isTabBarVisible = false;
-  }
+  const hideTabBarForRoutes = ["/(seller)/home/messaging/"];
 
   // Determine if the header should be visible and its title
   let screenTitle = "App";
@@ -65,52 +55,38 @@ function SellerTabLayout() {
   const currentSubPage = segments[2]; // 'messaging' under 'home'
   const detailPage = segments[3]; //  '[chatId]' under 'messaging'
 
-  // Customize header based on route
-  if (currentMainTab === "home") {
-    if (currentSubPage === "messaging" && detailPage) {
-      screenTitle = "Chat";
-      showHeader = true;
-    } else if (currentSubPage === "messaging") {
-      screenTitle = "Messages";
-      showHeader = true;
-    } else if (currentSubPage && currentSubPage.startsWith("product")) {
-      screenTitle = "Product Details";
-      showHeader = true;
-      // isTabBarVisible = false; // Optionally hide tab bar on product details too
-    } else {
-      screenTitle = "Home";
-      showHeader = true;
-    }
-  }
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#000000",
-        tabBarInactiveTintColor: "#B3B3B3",
+        tabBarActiveTintColor:
+          effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+        tabBarInactiveTintColor: lightColors.secondaryText,
 
         tabBarStyle: {
-          backgroundColor: "#ffffff",
+          backgroundColor:
+            effectiveTheme === "dark"
+              ? darkColors.headerBackground
+              : lightColors.headerBackground,
           borderTopWidth: 1,
-          borderTopColor: "#e5e7eb",
-          height: 70,
-          paddingBottom: 15,
-          display: isTabBarVisible ? "flex" : "none",
+          borderColor:
+            effectiveTheme === "dark" ? darkColors.accent : lightColors.accent,
+          height: 55 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "500",
-          color: "black",
+          color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
         },
-        header: (props) => (
-          <CustomHeader title={screenTitle} showHeader={true} {...props} />
-        ),
         headerShown: false,
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: "transparent",
+          },
           title: "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" color={color} size={size} />
@@ -124,6 +100,10 @@ function SellerTabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cube-outline" color={color} size={size} />
           ),
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: "transparent",
+          },
         }}
       />
       <Tabs.Screen
@@ -133,6 +113,10 @@ function SellerTabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart-outline" color={color} size={size} />
           ),
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: "transparent",
+          },
         }}
       />
       <Tabs.Screen
@@ -142,7 +126,11 @@ function SellerTabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart-outline" color={color} size={size} />
           ),
-          // tabBarBadge: 3, // Example badge
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: "transparent",
+          },
+          // tabBarBadge: 3,
         }}
       />
       <Tabs.Screen
@@ -152,6 +140,10 @@ function SellerTabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="account-circle" color={color} size={size} />
           ),
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: "transparent",
+          },
         }}
       />
     </Tabs>

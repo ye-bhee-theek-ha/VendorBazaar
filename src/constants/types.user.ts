@@ -31,3 +31,5 @@ export interface Notification {
   read: boolean;
   userId: string;
 }
+
+export type Theme = "light" | "dark" | "system";

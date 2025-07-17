@@ -33,7 +33,7 @@ export function KeyboardAvoidingView({
     const showSubscription = Keyboard.addListener(
       showSubscriptionEventName!,
       (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
+        setKeyboardHeight(20);
       }
     );
     const hideSubscription = Keyboard.addListener(
@@ -51,12 +51,12 @@ export function KeyboardAvoidingView({
 
   return (
     <View
-      className={clsx("flex-1 bg-background", className)}
+      className={clsx("flex-1 ", className)}
       style={[
         {
           paddingBottom:
             // Add bottom inset only when the keyboard is visible to avoid duplicating the safe area
-            keyboardHeight && keyboardHeight + insets.bottom,
+            keyboardHeight,
         },
         style,
       ]}

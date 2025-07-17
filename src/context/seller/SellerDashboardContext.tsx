@@ -52,7 +52,7 @@ export function SellerDashboardProvider({
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     salesToday: 0,
     newOrders: 0,
-    unreadMessages: 0, // Placeholder
+    unreadMessages: 0,
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,8 +144,6 @@ export function SellerDashboardProvider({
         )
       );
     });
-
-    // TODO: Fetch unread message count from Supabase and update metrics
 
     setLoading(false);
 

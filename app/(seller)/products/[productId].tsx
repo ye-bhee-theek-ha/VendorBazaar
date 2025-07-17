@@ -34,6 +34,9 @@ import {
 } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { BlurView } from "expo-blur";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const REVIEWS_PER_PAGE = 10;
@@ -44,40 +47,51 @@ const HIDE_THRESHOLD = 200;
 const SHOW_THRESHOLD = 300;
 
 // --- Skeleton Loader Component ---
-const SkeletonLoader = () => {
+const SkeletonLoader = ({
+  effectiveTheme,
+}: {
+  effectiveTheme: "light" | "dark";
+}) => {
   const imageSize = SCREEN_WIDTH * 0.9;
 
+  // Define colors based on the theme prop
+  const isDark = effectiveTheme === "dark";
+  const mainBg = isDark ? "bg-zinc-800" : "bg-gray-100";
+  const placeholderBg = isDark ? "bg-zinc-700" : "bg-gray-200";
+  const cardBg = isDark ? "bg-zinc-800" : "bg-white";
+
   return (
-    <View className="flex-1 bg-gray-100 items-center pt-4">
-      {/* 1. Square Image Placeholder */}
+    <View className={`flex-1 items-center pt-4 ${mainBg}`}>
       <View
-        className="bg-gray-200 rounded-xl"
+        className={`rounded-xl ${placeholderBg}`}
         style={{ width: imageSize, height: imageSize }}
       />
 
-      {/* 2. Main Content Below Image */}
       <View className="w-full px-5 mt-4 space-y-4">
-        {/* Info Card */}
-        <View className="bg-white p-5 rounded-2xl shadow">
-          <View className="w-3/4 h-6 bg-gray-200 rounded-md" />
-          <View className="w-1/2 h-9 bg-gray-200 rounded-md mt-2" />
-          <View className="w-full h-4 bg-gray-200 rounded-md mt-4" />
-          <View className="w-11/12 h-4 bg-gray-200 rounded-md mt-2" />
+        <View className={`p-5 rounded-2xl shadow ${cardBg}`}>
+          <View className={`w-3/4 h-6 rounded-md ${placeholderBg}`} />
+          <View className={`w-1/2 h-9 rounded-md mt-2 ${placeholderBg}`} />
+          <View className={`w-full h-4 rounded-md mt-4 ${placeholderBg}`} />
+          <View className={`w-11/12 h-4 rounded-md mt-2 ${placeholderBg}`} />
         </View>
 
         {/* Tab Switcher */}
-        <View className="bg-gray-200/70 p-1 rounded-full mt-5">
-          <View className="h-10 w-full bg-white rounded-full" />
+        <View
+          className={`p-1 rounded-full mt-5 ${
+            isDark ? "bg-zinc-700/70" : "bg-gray-200/70"
+          }`}
+        >
+          <View className={`h-10 w-full rounded-full ${cardBg}`} />
         </View>
 
         {/* Grid */}
         <View className="flex-row space-x-4 mt-5">
-          <View className="flex-1 h-24 bg-white rounded-2xl" />
-          <View className="flex-1 h-24 bg-white rounded-2xl" />
+          <View className={`flex-1 h-24 rounded-2xl ${cardBg}`} />
+          <View className={`flex-1 h-24 rounded-2xl ${cardBg}`} />
         </View>
         <View className="flex-row space-x-4 mt-4">
-          <View className="flex-1 h-24 bg-white rounded-2xl" />
-          <View className="flex-1 h-24 bg-white rounded-2xl" />
+          <View className={`flex-1 h-24 rounded-2xl ${cardBg}`} />
+          <View className={`flex-1 h-24 rounded-2xl ${cardBg}`} />
         </View>
       </View>
     </View>
@@ -89,32 +103,106 @@ const StatCard = ({
   label,
   value,
   icon,
+  effectiveTheme,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
+  effectiveTheme: string;
 }) => (
-  <View className="flex-1 bg-white p-4 rounded-2xl items-center shadow-sm border border-gray-200/30">
-    <Ionicons name={icon} size={28} color="#0b6623" />
-    <Text className="text-lg font-bold mt-2 text-gray-800">{value}</Text>
-    <Text className="text-sm text-gray-500 mt-1">{label}</Text>
+  <View
+    className="flex-1 p-4 rounded-2xl items-center shadow-sm border"
+    style={{
+      borderColor:
+        effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+      backgroundColor:
+        effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+      elevation: 5,
+      shadowColor: effectiveTheme === "dark" ? "#ffffff50" : "#00000050",
+    }}
+  >
+    <View className="flex-row items-center flex w-full justify-between px-8">
+      <Ionicons
+        name={icon}
+        size={28}
+        color={
+          effectiveTheme === "dark"
+            ? darkColors.secondaryText
+            : lightColors.secondaryText
+        }
+      />
+      <Text
+        className="text-heading font-Fredoka_SemiBold mt-2 "
+        style={{
+          color:
+            effectiveTheme === "dark"
+              ? darkColors.secondaryText
+              : lightColors.secondaryText,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+
+    <Text
+      className="text-medium font-Fredoka_Regular mt-2"
+      style={{
+        color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+      }}
+    >
+      {label}
+    </Text>
   </View>
 );
 
-const ReviewCard = ({ review }: { review: Review }) => (
-  <View className="bg-white p-4 rounded-2xl mb-4 shadow-sm border border-gray-200/30 mx-5">
+const ReviewCard = ({
+  review,
+  effectiveTheme,
+}: {
+  review: Review;
+  effectiveTheme: string;
+}) => (
+  <View
+    className="bg-white p-4 rounded-2xl mb-4 shadow-sm border border-gray-200/30 mx-5"
+    style={{
+      borderColor:
+        effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+      backgroundColor:
+        effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+      elevation: 5,
+      shadowColor: effectiveTheme === "dark" ? "#ffffff50" : "#00000050",
+    }}
+  >
     <View className="flex-row justify-between items-center mb-2">
-      <Text className="text-base font-bold text-gray-800">
+      <Text
+        className="text-text font-Fredoka_Medium"
+        style={{
+          color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+        }}
+      >
         {review.userName}
       </Text>
-      <View className="flex-row items-center bg-green-900/10 px-2.5 py-1 rounded-full">
-        <Text className="text-base font-bold mr-1 text-green-700">
+      <View className="flex-row items-center  px-2.5 py-1 rounded-full">
+        <Text
+          className="text-medium font-Fredoka_Medium mr-2"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
           {review.rating}
         </Text>
         <Ionicons name="star" size={16} color="#FFC700" />
       </View>
     </View>
-    <Text className="text-base text-gray-600 leading-6">{review.text}</Text>
+    <Text
+      className="text-medium font-Fredoka_Regular leading-6"
+      style={{
+        color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+      }}
+    >
+      {review.text}
+    </Text>
     <Text className="text-xs text-gray-400 mt-3 text-right">
       {new Date(review.createdAt.seconds * 1000).toLocaleDateString()}
     </Text>
@@ -195,6 +283,7 @@ export default function SellerProductDetailsScreen() {
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { effectiveTheme } = useTheme();
 
   // --- Animation and Scroll State ---
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -415,18 +504,21 @@ export default function SellerProductDetailsScreen() {
     }
   );
 
-  {
-    console.log(product);
-  }
-
   // --- Render Methods ---
   if (loading) {
-    return <SkeletonLoader />;
+    return <SkeletonLoader effectiveTheme={effectiveTheme} />;
   }
 
   if (!product) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <View className="flex-1 justify-center items-center">
+        <Stack.Screen
+          options={{
+            headerTransparent: true,
+            title: "",
+            headerTintColor: effectiveTheme === "dark" ? "#fff" : "#000",
+          }}
+        />
         <Text className="text-base text-gray-500">Product not found.</Text>
       </View>
     );
@@ -435,7 +527,7 @@ export default function SellerProductDetailsScreen() {
   const renderListHeader = () => (
     <>
       <Animated.View
-        className="z-20"
+        className="-z-20"
         style={{
           transform: [{ translateY: imageAnimation }],
           opacity: imageAnimation.interpolate({
@@ -457,13 +549,42 @@ export default function SellerProductDetailsScreen() {
         }}
       >
         <View className="p-5">
-          <View className="bg-white p-5 rounded-2xl shadow-lg shadow-black/10">
+          <View
+            className="p-5 rounded-2xl shadow-sm border"
+            style={{
+              borderColor:
+                effectiveTheme === "dark"
+                  ? darkColors.border
+                  : lightColors.border,
+              backgroundColor:
+                effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+              elevation: 5,
+              shadowColor:
+                effectiveTheme === "dark" ? "#ffffff50" : "#00000050",
+            }}
+          >
             <View className="flex-row justify-between items-center mb-3">
               <View className="">
-                <Text className="text-2xl font-bold text-gray-800">
+                <Text
+                  className="text-heading font-Fredoka_SemiBold"
+                  style={{
+                    color:
+                      effectiveTheme === "dark"
+                        ? darkColors.secondaryText
+                        : lightColors.text,
+                  }}
+                >
                   {product.name}
                 </Text>
-                <Text className="text-3xl font-bold text-green-700 mt-1">
+                <Text
+                  className="text-3xl font-Fredoka_SemiBold mt-1"
+                  style={{
+                    color:
+                      effectiveTheme === "dark"
+                        ? darkColors.text
+                        : lightColors.accent,
+                  }}
+                >
                   ${product.price.toFixed(2)}
                 </Text>
               </View>
@@ -477,10 +598,13 @@ export default function SellerProductDetailsScreen() {
               >
                 <View className="h-fit">
                   <Text
-                    className="text-md font-bold text-gray-800"
+                    className="text-md font-bold"
                     style={{
                       marginRight: 8,
-                      opacity: 0.5,
+                      color:
+                        effectiveTheme === "dark"
+                          ? darkColors.tertiaryText
+                          : lightColors.tertiaryText,
                     }}
                   >
                     {product.createdAt &&
@@ -498,33 +622,72 @@ export default function SellerProductDetailsScreen() {
                     color="#FFC700"
                     className="mr-1"
                   />
-                  <Text className="text-lg font-bold text-gray-800">
+                  <Text
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        effectiveTheme === "dark"
+                          ? darkColors.text
+                          : lightColors.text,
+                    }}
+                  >
                     {product.ratingAvg?.toString() || "N/A"}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <Text className="text-base text-gray-600 mt-3 leading-6">
+            <Text
+              className="text-base mt-3 leading-6"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.secondaryText,
+              }}
+            >
               {product.description}
             </Text>
           </View>
         </View>
 
         <View className="px-5">
-          <View className="flex-row bg-gray-200/70 p-1 rounded-full">
+          <View
+            className="flex-row p-1 rounded-full shadow-md"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+              elevation: 5,
+              shadowColor:
+                effectiveTheme === "dark" ? "#ffffff50" : "#00000050",
+            }}
+          >
             {["Analytics", "Reviews"].map((tab) => (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
-                className={`flex-1 items-center py-2.5 rounded-full ${
-                  activeTab === tab ? "bg-white shadow-md" : ""
-                }`}
+                className={`flex-1 items-center py-2.5 rounded-full`}
+                style={{
+                  backgroundColor:
+                    activeTab === tab
+                      ? effectiveTheme === "dark"
+                        ? darkColors.text + "90"
+                        : lightColors.text + "90"
+                      : "transparent",
+                }}
               >
                 <Text
-                  className={`text-base font-bold ${
-                    activeTab === tab ? "text-green-700" : "text-gray-500"
-                  }`}
+                  className={`text-base font-bold `}
+                  style={{
+                    color:
+                      activeTab === tab
+                        ? effectiveTheme === "dark"
+                          ? darkColors.card
+                          : lightColors.card
+                        : effectiveTheme === "dark"
+                        ? darkColors.tertiaryText
+                        : lightColors.tertiaryText,
+                  }}
                 >
                   {tab}
                 </Text>
@@ -542,11 +705,13 @@ export default function SellerProductDetailsScreen() {
               label="Revenue"
               value={`$${(product.totalRevenue || 0).toFixed(0)}`}
               icon="cash-outline"
+              effectiveTheme={effectiveTheme}
             />
             <StatCard
               label="Sales"
               value={(product.totalSales || 0).toString()}
               icon="cart-outline"
+              effectiveTheme={effectiveTheme}
             />
           </View>
           <View className="flex-row gap-x-4 mt-4">
@@ -554,11 +719,13 @@ export default function SellerProductDetailsScreen() {
               label="Views"
               value={(product.totalViews || 0).toString()}
               icon="eye-outline"
+              effectiveTheme={effectiveTheme}
             />
             <StatCard
               label="In Stock"
               value={product.stockQuantity?.toString() ?? "N/A"}
               icon="cube-outline"
+              effectiveTheme={effectiveTheme}
             />
           </View>
         </View>
@@ -580,15 +747,15 @@ export default function SellerProductDetailsScreen() {
       <Stack.Screen
         options={{
           headerTransparent: true,
-          title: "",
-          headerTintColor: "white",
         }}
       />
 
       <Animated.FlatList
         style={{ zIndex: 0 }}
         data={activeTab === "Reviews" ? reviews : []}
-        renderItem={({ item }) => <ReviewCard review={item} />}
+        renderItem={({ item }) => (
+          <ReviewCard review={item} effectiveTheme={effectiveTheme} />
+        )}
         keyExtractor={(item) => item.id}
         nestedScrollEnabled={true}
         ListHeaderComponent={() => {
@@ -646,42 +813,69 @@ export default function SellerProductDetailsScreen() {
       />
 
       {/* Bottom Action Bar */}
-      <View className="absolute bottom-0 w-full bg-white/80 backdrop-blur-lg border-t border-gray-200/50">
-        <View className="p-4 flex-row gap-x-3 items-center">
-          <TouchableOpacity
-            onPress={handleDelete}
-            className="bg-red-500/10 p-3.5 rounded-full"
-          >
-            <Ionicons name="trash-outline" size={24} color="#ef4444" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleToggleDisabled}
-            className="bg-gray-500/10 p-3.5 rounded-full"
-          >
-            <Ionicons
-              name={product.disabled ? "eye-outline" : "eye-off-outline"}
-              size={24}
-              color="#333"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleEdit} className="flex-1">
-            <LinearGradient
-              colors={["#0b6649", "#0b6623"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                flex: 1,
-                borderRadius: 9999,
-              }}
-              className="p-4 rounded-full flex-row justify-center items-center"
+      <View className="m-4 absolute bottom-0 left-0 right-0 z-10">
+        <BlurView
+          experimentalBlurMethod="dimezisBlurView"
+          intensity={40}
+          tint={effectiveTheme === "dark" ? "dark" : "light"}
+          className="  flex w-full flex-1 border rounded-2xl overflow-hidden "
+          style={{
+            borderColor:
+              effectiveTheme === "dark"
+                ? darkColors.border
+                : lightColors.border,
+            backgroundColor:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText + "20"
+                : lightColors.card + "20",
+          }}
+        >
+          <View className="p-4 flex-row gap-x-3 items-center">
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="bg-red-500/10 p-3.5 rounded-full"
             >
-              <Ionicons name="create-outline" size={22} color="white" />
-              <Text className="text-white text-base font-bold ml-2">
-                Edit Product
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <Ionicons name="trash-outline" size={24} color="#ef4444" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleToggleDisabled}
+              className="p-3.5 rounded-full"
+              style={{
+                backgroundColor:
+                  product.disabled && effectiveTheme === "dark"
+                    ? darkColors.text + "10"
+                    : product.disabled && effectiveTheme === "light"
+                    ? lightColors.text + "10"
+                    : "transparent",
+              }}
+            >
+              <Ionicons
+                name={product.disabled ? "eye-outline" : "eye-off-outline"}
+                size={24}
+                color={
+                  effectiveTheme === "dark" ? darkColors.text : lightColors.text
+                }
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleEdit} className="flex-1 mx-2">
+              <LinearGradient
+                colors={["#0b6649", "#0b6623"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  flex: 1,
+                  borderRadius: 9999,
+                }}
+                className="p-2 rounded-full flex-row justify-center items-center overflow-hidden"
+              >
+                <Ionicons name="create-outline" size={22} color="white" />
+                <Text className="text-white text-base font-bold ml-2">
+                  Edit Product
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
       </View>
     </View>
   );

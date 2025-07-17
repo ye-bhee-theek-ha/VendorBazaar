@@ -44,6 +44,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { supabase } from "@/src/lib/supabase";
 import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
 
 type ListItem =
   | (Product & { type: "product" })
@@ -59,11 +61,25 @@ const screenWidth = Dimensions.get("window").width;
 
 // --- Reusable Card Components ---
 
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({
+  product,
+  effectiveTheme,
+}: {
+  product: Product;
+  effectiveTheme: "light" | "dark";
+}) => {
   const { likedProductIds, toggleLikeProduct } = useAuth();
   const isLiked = likedProductIds.includes(product.pid);
   return (
-    <View className="flex-1 m-1.5 shadow-lg shadow-grey-200 rounded-lg bg-white">
+    <View
+      className="flex-1 m-1.5 my-3 shadow-lg shadow-grey-200 rounded-lg"
+      style={{
+        backgroundColor:
+          effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+        borderColor:
+          effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+      }}
+    >
       <Link href={`/(customer)/home/${product.pid}`} asChild>
         <TouchableOpacity activeOpacity={0.8}>
           <View className="relative">
@@ -71,11 +87,17 @@ const ProductCard = ({ product }: { product: Product }) => {
               source={{
                 uri: product.imagesUrl[0],
               }}
-              className="w-full aspect-square rounded-lg bg-gray-200"
+              className="w-full aspect-square rounded-lg "
             />
             <TouchableOpacity
               onPress={() => toggleLikeProduct(product.pid)}
-              className="absolute top-2 right-2 bg-white/80 p-1.5 rounded-full z-10 shadow"
+              className="absolute top-2 right-2 p-1.5 rounded-full z-10 shadow"
+              style={{
+                backgroundColor:
+                  effectiveTheme === "dark"
+                    ? darkColors.card
+                    : lightColors.card,
+              }}
             >
               <Ionicons
                 name={isLiked ? "heart" : "heart-outline"}
@@ -86,11 +108,32 @@ const ProductCard = ({ product }: { product: Product }) => {
           </View>
         </TouchableOpacity>
       </Link>
-      <View className="p-2 bg-white rounded-b-lg">
-        <Text className="text-sm font-semibold text-gray-800" numberOfLines={1}>
+      <View
+        className="p-2 rounded-b-lg"
+        style={{
+          backgroundColor:
+            effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+        }}
+      >
+        <Text
+          className="text-medium font-MuseoModerno_Regular "
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+          numberOfLines={1}
+        >
           {product.name}
         </Text>
-        <Text className="text-base font-bold text-black mt-1">
+        <Text
+          className="text-base font-MuseoModerno_SemiBold mt-1"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
           ${product.price?.toFixed(2)}
         </Text>
       </View>
@@ -98,34 +141,88 @@ const ProductCard = ({ product }: { product: Product }) => {
   );
 };
 
-const ReviewCard = ({ review }: { review: Review }) => (
-  <View className="p-4 border-b-2 border-grey/50 mx-6">
-    <View className="flex-row items-center mb-1">
-      <View className="flex-row">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Ionicons
-            key={i}
-            name="star"
-            size={16}
-            color={i < review.rating ? "#FFC107" : "#E0E0E0"}
-          />
-        ))}
-      </View>
-      <Text className="ml-auto text-xs text-gray-500">
-        {review.createdAt?.toDate().toLocaleDateString()}
+const ReviewCard = ({
+  review,
+  effectiveTheme,
+}: {
+  review: Review;
+  effectiveTheme: string;
+}) => (
+  <View
+    className="bg-white p-4 rounded-2xl mb-4 shadow-sm border mx-5"
+    style={{
+      borderColor:
+        effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+      backgroundColor:
+        effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+      elevation: 3,
+      shadowColor: effectiveTheme === "dark" ? "#ffffff30" : "#00000030",
+    }}
+  >
+    <View className="flex-row justify-between items-center mb-2">
+      <Text
+        className="text-base font-semibold"
+        style={{
+          color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+        }}
+      >
+        {review.userName}
       </Text>
+      <View className="flex-row items-center px-2.5 py-1 rounded-full">
+        <Text
+          className="text-base font-bold mr-2"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
+          {review.rating}
+        </Text>
+        <Ionicons name="star" size={16} color="#FFC700" />
+      </View>
     </View>
-    <Text className="text-gray-800 leading-6 mt-1">{review.text}</Text>
-    <Text className="text-sm font-semibold text-gray-600 mt-2 self-end">
-      - {review.userName}
+    <Text
+      className="text-sm leading-6"
+      style={{
+        color:
+          effectiveTheme === "dark"
+            ? darkColors.secondaryText
+            : lightColors.secondaryText,
+      }}
+    >
+      {review.text}
+    </Text>
+    <Text className="text-xs text-gray-400 mt-3 text-right">
+      {new Date(review.createdAt.seconds * 1000).toLocaleDateString()}
     </Text>
   </View>
 );
 
-const AboutTab = ({ bio }: { bio?: string }) => (
+const AboutTab = ({
+  bio,
+  effectiveTheme,
+}: {
+  bio?: string;
+  effectiveTheme: "light" | "dark";
+}) => (
   <View className="p-4 mx-2">
-    <Text className="text-lg font-bold mb-2">About the Shop</Text>
-    <Text className="text-base leading-7 text-gray-700">
+    <Text
+      className="text-lg font-MuseoModerno_SemiBold mb-2"
+      style={{
+        color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+      }}
+    >
+      About the Shop
+    </Text>
+    <Text
+      className="text-base leading-7 "
+      style={{
+        color:
+          effectiveTheme === "dark"
+            ? darkColors.secondaryText
+            : lightColors.secondaryText,
+      }}
+    >
       {bio || "This seller has not provided any information yet."}
     </Text>
   </View>
@@ -184,6 +281,8 @@ export default function SellerProfileScreen() {
   const tabIndicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tabIndicatorPos.value }],
   }));
+
+  const { effectiveTheme } = useTheme();
 
   const handleTabPress = (tabName: string, index: number) => {
     if (activeTab === tabName) return;
@@ -323,38 +422,128 @@ export default function SellerProfileScreen() {
   }, [activeTab]);
 
   const renderHeader = () => (
-    <View className="bg-white">
-      <View className="w-full items-center">
+    <View className="">
+      <View className="w-full items-center mt-4">
         <Image
           source={{ uri: seller?.shopBannerUrl }}
           className="w-[95%] h-40 rounded-lg"
         />
       </View>
 
-      <View className="p-4 items-center my-2">
-        <Text className="text-2xl font-bold mt-2">{seller?.shopName}</Text>
-        <View className="flex-row items-stretch space-x-6 mt-2">
+      <View
+        className="justify-between items-center m-4 rounded-2xl py-4"
+        style={{
+          borderColor:
+            effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+          backgroundColor:
+            effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+          elevation: 5,
+          shadowColor: effectiveTheme === "dark" ? "#ffffff50" : "#00000050",
+        }}
+      >
+        <Text
+          className="text-2xl font-MuseoModerno_SemiBold mt-2"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
+          {seller?.shopName}
+        </Text>
+        <View className="flex-row items-stretch space-x-6 mt-4">
           <View className="items-center">
-            <Text className="font-bold">{seller?.totalFollowers || 0}</Text>
-            <Text className="text-gray-500 text-sm">Followers</Text>
+            <Text
+              className="font-MuseoModerno_SemiBold font-medium"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.text
+                    : lightColors.text,
+              }}
+            >
+              {seller?.totalFollowers || 0}
+            </Text>
+            <Text
+              className="text-gray-500 text-sm"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.secondaryText,
+              }}
+            >
+              Followers
+            </Text>
           </View>
           <View className="items-center mx-6">
-            <Text className="font-bold">
+            <Text
+              className="font-bold"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.text
+                    : lightColors.text,
+              }}
+            >
               {seller?.avgRating?.toFixed(1) || "0.0"}
             </Text>
-            <Text className="text-gray-500 text-sm">Rating</Text>
+            <Text
+              className="text-gray-500 text-sm"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.secondaryText,
+              }}
+            >
+              Rating
+            </Text>
           </View>
           <View className="items-center">
-            <Text className="font-bold">{seller?.totalReviews || 0}</Text>
-            <Text className="text-gray-500 text-sm">Reviews</Text>
+            <Text
+              className="font-bold"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.text
+                    : lightColors.text,
+              }}
+            >
+              {seller?.totalReviews || 0}
+            </Text>
+            <Text
+              className="text-gray-500 text-sm"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.secondaryText
+                    : lightColors.secondaryText,
+              }}
+            >
+              Reviews
+            </Text>
           </View>
         </View>
         <View className="flex-row space-x-3 gap-x-6 mt-4 w-full px-4">
           <TouchableOpacity
-            className="flex-1 bg-black p-3 rounded-lg"
+            className="flex-1 p-3 rounded-lg"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark"
+                  ? darkColors.text
+                  : lightColors.accent,
+            }}
             onPress={() => toggleFollowSeller(sellerId.trim())}
           >
-            <Text className="text-white text-center font-bold">
+            <Text
+              className="text-white text-center font-bold"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.background
+                    : lightColors.background,
+              }}
+            >
               {user?.FollowingSellersIds.includes(sellerId)
                 ? "Unfollow"
                 : "Follow"}
@@ -362,6 +551,16 @@ export default function SellerProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             className="flex-1 border border-gray-300 p-3 rounded-lg"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark"
+                  ? darkColors.text + "20"
+                  : lightColors.card,
+              borderColor:
+                effectiveTheme === "dark"
+                  ? darkColors.border
+                  : lightColors.border,
+            }}
             onPress={() => {
               router.push({
                 pathname: "/(messages)/chat",
@@ -372,7 +571,17 @@ export default function SellerProfileScreen() {
               });
             }}
           >
-            <Text className="text-black text-center font-bold">Message</Text>
+            <Text
+              className=" text-center font-bold"
+              style={{
+                color:
+                  effectiveTheme === "dark"
+                    ? darkColors.text
+                    : lightColors.text,
+              }}
+            >
+              Message
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -380,7 +589,7 @@ export default function SellerProfileScreen() {
   );
 
   const renderTabs = () => (
-    <View className="bg-white">
+    <View className="bg-white/10">
       <View className="flex-row">
         {TABS.map((tab, index) => (
           <TouchableOpacity
@@ -389,9 +598,17 @@ export default function SellerProfileScreen() {
             className="flex-1 items-center p-3"
           >
             <Text
-              className={`font-bold text-base ${
-                activeTab === tab ? "text-black" : "text-gray-400"
-              }`}
+              className={`font-bold text-base`}
+              style={{
+                color:
+                  activeTab === tab
+                    ? effectiveTheme === "dark"
+                      ? darkColors.text
+                      : lightColors.text
+                    : effectiveTheme === "dark"
+                    ? darkColors.tertiaryText
+                    : lightColors.tertiaryText,
+              }}
             >
               {tab}
             </Text>
@@ -406,7 +623,7 @@ export default function SellerProfileScreen() {
   );
 
   const renderEmptyState = () => (
-    <View className="flex-1 items-center justify-center p-10 bg-gray-50 pt-20">
+    <View className="flex-1 items-center justify-center p-10  pt-20">
       <Ionicons
         name={
           activeTab === "Products"
@@ -441,17 +658,33 @@ export default function SellerProfileScreen() {
           data={listData}
           key={activeTab}
           numColumns={activeTab === "Products" ? 2 : 1}
+          className="py-2"
           renderItem={({ item }) => {
             if ("isPlaceholder" in item)
               return <View className="flex-1 m-1.5" />;
 
             switch (item.type) {
               case "product":
-                return <ProductCard product={item as Product} />;
+                return (
+                  <ProductCard
+                    product={item as Product}
+                    effectiveTheme={effectiveTheme}
+                  />
+                );
               case "review":
-                return <ReviewCard review={item as Review} />;
+                return (
+                  <ReviewCard
+                    review={item as Review}
+                    effectiveTheme={effectiveTheme}
+                  />
+                );
               case "about":
-                return <AboutTab bio={(item as any).bio} />;
+                return (
+                  <AboutTab
+                    bio={(item as any).bio}
+                    effectiveTheme={effectiveTheme}
+                  />
+                );
               default:
                 return null;
             }
@@ -483,67 +716,7 @@ export default function SellerProfileScreen() {
         />
       </View>
     );
-    // switch (activeTab) {
-    //   case "Products":
-    //     return products.length > 0 ? (
-    //       <FlatList
-    //         data={productsdataForList}
-    //         renderItem={({ item }) => {
-    //           if ("isPlaceholder" in item) {
-    //             return <View className="flex-1 m-1.5" />;
-    //           }
-    //           return <ProductCard product={item} />;
-    //         }}
-    //         keyExtractor={(item) => (item as Product).pid}
-    //         numColumns={2}
-    //         onEndReached={() => fetchProductsCallback(true)}
-    //         onEndReachedThreshold={0.5}
-    //         ListFooterComponent={
-    //           loadingMore ? <ActivityIndicator className="my-4" /> : null
-    //         }
-    //         contentContainerStyle={{ paddingHorizontal: 6 }}
-    //       />
-    //     ) : (
-    //       <EmptyState />
-    //     );
-    //   case "Reviews":
-    //     return reviews.length > 0 ? (
-    //       <FlatList
-    //         data={reviews}
-    //         renderItem={({ item }) => <ReviewCard review={item as Review} />}
-    //         keyExtractor={(item) => item.id}
-    //         onEndReached={() => fetchReviewsCallback(true)}
-    //         onEndReachedThreshold={0.5}
-    //         ListFooterComponent={
-    //           loadingMore ? <ActivityIndicator className="my-4" /> : null
-    //         }
-    //       />
-    //     ) : (
-    //       <EmptyState />
-    //     );
-    //   case "About":
-    //     return <AboutTab bio={seller?.bio} />;
-    //   default:
-    //     return null;
-    // }
   };
-
-  // const EmptyState = () => (
-  //   <View className="flex-1 items-center justify-center p-10 bg-gray-50 pt-20">
-  //     <Ionicons
-  //       name={
-  //         activeTab === "Products"
-  //           ? "cube-outline"
-  //           : "chatbubble-ellipses-outline"
-  //       }
-  //       size={40}
-  //       color="gray"
-  //     />
-  //     <Text className="text-center mt-4 text-gray-500">
-  //       No {activeTab.toLowerCase()} to display yet.
-  //     </Text>
-  //   </View>
-  // );
 
   if (loadingProfile) {
     return (
@@ -554,7 +727,7 @@ export default function SellerProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 ">
       <Stack.Screen
         options={{
           title: seller?.shopName || "Seller Profile",
