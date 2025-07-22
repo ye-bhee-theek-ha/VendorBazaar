@@ -9,65 +9,193 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  Animated,
+  Linking,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  writeBatch,
+  increment,
+} from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 import { useSellerOrders } from "@/src/context/seller/SellerOrderContext";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { AppUser } from "@/src/constants/types.user";
 import { Order, OrderStatus } from "@/src/constants/types.order";
 import { CartItem } from "@/src/constants/types.product";
+import { useTheme } from "@/src/context/ThemeContext";
+import { darkColors, lightColors } from "@/src/constants/Colors";
+import { useAuth } from "@/src/context/AuthContext";
+import { statusToAnalyticsKey } from "@/src/helpers/helper";
 
-// --- Reusable Components ---
+// Status color mapping
+const getStatusColor = (status: OrderStatus) => {
+  switch (status) {
+    case "paid":
+      return "#10b981";
+    case "Processing":
+      return "#3b82f6";
+    case "In Transit":
+      return "#f59e0b";
+    case "Completed":
+      return "#10b981";
+    case "Cancelled":
+      return "#ef4444";
+    default:
+      return "#6b7280";
+  }
+};
 
-const OrderItemCard = ({ item }: { item: CartItem }) => (
-  <View className="flex-row items-center bg-gray-50/50 p-3 rounded-lg border border-gray-200 mb-2">
-    <Image
-      source={{ uri: item.imagesUrl?.[0] || "https://placehold.co/100x100" }}
-      className="w-16 h-16 rounded-md mr-4"
-    />
-    <View className="flex-1">
-      <Text className="text-base font-semibold" numberOfLines={1}>
-        {item.name}
-      </Text>
-      <Text className="text-sm text-gray-500">Qty: {item.quantity}</Text>
+// Order Item Card Component
+const OrderItemCard = ({
+  item,
+  effectiveTheme,
+}: {
+  item: CartItem;
+  effectiveTheme: "light" | "dark";
+}) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+
+  return (
+    <View
+      className="flex-row p-3 rounded-xl mb-2 border"
+      style={{
+        backgroundColor: effectiveTheme === "dark" ? "#1a1a1a" : "#f9fafb",
+        borderColor: colors.border,
+      }}
+    >
+      <Image
+        source={{ uri: item.imagesUrl?.[0] || "https://placehold.co/100x100" }}
+        className="w-20 h-20 rounded-lg mr-3"
+        style={{ backgroundColor: colors.border }}
+      />
+      <View className="flex-1">
+        <Text
+          className="text-base font-semibold mb-1"
+          numberOfLines={2}
+          style={{ color: colors.text }}
+        >
+          {item.name}
+        </Text>
+        <View className="flex-row items-center mb-1">
+          <Text className="text-sm" style={{ color: colors.secondaryText }}>
+            Quantity:
+          </Text>
+          <Text
+            className="text-sm font-medium ml-1"
+            style={{ color: colors.text }}
+          >
+            {item.quantity}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <Text className="text-sm" style={{ color: colors.secondaryText }}>
+            Price:
+          </Text>
+          <Text
+            className="text-sm font-medium ml-1"
+            style={{ color: colors.text }}
+          >
+            R{item.price} each
+          </Text>
+        </View>
+      </View>
+      <View className="items-end justify-center">
+        <Text className="text-lg font-bold" style={{ color: colors.accent }}>
+          R{(item.price * item.quantity).toFixed(2)}
+        </Text>
+      </View>
     </View>
-    <Text className="text-base font-bold">
-      ${(item.price * item.quantity).toFixed(2)}
-    </Text>
-  </View>
-);
+  );
+};
 
+// Info Row Component
 const InfoRow = ({
   label,
   value,
   icon,
+  iconColor,
+  effectiveTheme,
+  onPress,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
-}) => (
-  <View className="flex-row items-start mb-3">
-    <Ionicons name={icon} size={20} color="gray" className="mr-3 mt-1" />
-    <View className="flex-1">
-      <Text className="text-sm text-gray-500">{label}</Text>
-      <Text className="text-base font-medium text-black">{value}</Text>
+  iconColor?: string;
+  effectiveTheme: "light" | "dark";
+  onPress?: () => void;
+}) => {
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+  const content = (
+    <View className="flex-row items-start py-3">
+      <View
+        className="w-10 h-10 rounded-full items-center justify-center mr-3"
+        style={{
+          backgroundColor: `${iconColor || colors.accent}20`,
+        }}
+      >
+        <Ionicons name={icon} size={20} color={iconColor || colors.accent} />
+      </View>
+      <View className="flex-1">
+        <Text
+          className="text-xs mb-0.5"
+          style={{ color: colors.secondaryText }}
+        >
+          {label}
+        </Text>
+        <Text className="text-base font-medium" style={{ color: colors.text }}>
+          {value}
+        </Text>
+      </View>
+      {onPress && (
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={colors.secondaryText}
+          className="my-auto"
+        />
+      )}
     </View>
-  </View>
-);
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
+};
 
 export default function OrderDetailsScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
+  const { user } = useAuth();
+  const { effectiveTheme } = useTheme();
+  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
 
-  // Get all order lists from the context
-  const { newOrders, processingOrders, shippedOrders, completedOrders } =
+  const { newOrders, shippedOrders, completedOrders, handleUpdateStatus } =
     useSellerOrders();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [customer, setCustomer] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   useEffect(() => {
     if (!orderId) {
@@ -75,168 +203,444 @@ export default function OrderDetailsScreen() {
       return;
     }
 
-    const allContextOrders = [
-      ...newOrders,
-      ...processingOrders,
-      ...shippedOrders,
-      ...completedOrders,
-    ];
-    const orderFromContext = allContextOrders.find((o) => o.id === orderId);
+    // Try to find order in context first
+    const allOrders = [...newOrders, ...shippedOrders, ...completedOrders];
+    const orderFromContext = allOrders.find((o) => o.id === orderId);
 
     if (orderFromContext) {
       setOrder(orderFromContext);
-      setLoading(false);
+      fetchCustomerDetails(orderFromContext.userId);
     } else {
-      const fetchOrder = async () => {
-        try {
-          const orderRef = doc(db, "orders", orderId);
-          const docSnap = await getDoc(orderRef);
-          if (docSnap.exists()) {
-            setOrder({ id: docSnap.id, ...docSnap.data() } as Order);
-          }
-        } catch (err) {
-          console.error("Error fetching order details:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchOrder();
+      // Fetch from Firebase if not in context
+      fetchOrderFromFirebase();
     }
-  }, [orderId, newOrders, processingOrders, shippedOrders, completedOrders]);
+  }, [orderId, newOrders, shippedOrders, completedOrders]);
 
-  useEffect(() => {
-    if (order?.userId) {
-      const fetchCustomerDetails = async () => {
-        try {
-          const userRef = doc(db, "users", order.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            setCustomer(userSnap.data() as AppUser);
-          }
-        } catch (err) {
-          console.error("Error fetching customer details:", err);
-        }
-      };
-      fetchCustomerDetails();
-    }
-  }, [order]);
-
-  const handleUpdateStatus = async (newStatus: OrderStatus) => {
-    if (!order) return;
-    const orderRef = doc(db, "orders", order.id);
+  const fetchOrderFromFirebase = async () => {
     try {
-      await updateDoc(orderRef, { status: newStatus });
-      setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
-      Alert.alert(
-        "Success",
-        `Order status has been updated to "${newStatus}".`
-      );
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      Alert.alert("Error", "Could not update order status.");
+      const orderRef = doc(db, "orders", orderId as string);
+      const docSnap = await getDoc(orderRef);
+      if (docSnap.exists()) {
+        const orderData = { id: docSnap.id, ...docSnap.data() } as Order;
+        setOrder(orderData);
+        fetchCustomerDetails(orderData.userId);
+      }
+    } catch (err) {
+      console.error("Error fetching order:", err);
+      Alert.alert("Error", "Failed to load order details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCustomerDetails = async (userId: string) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        setCustomer(userSnap.data() as AppUser);
+      }
+    } catch (err) {
+      console.error("Error fetching customer:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (newStatus: OrderStatus) => {
+    if (!order || !user) return;
+
+    Alert.alert(
+      "Update Order Status",
+      `Are you sure you want to mark this order as "${newStatus}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Update",
+          onPress: async () => {
+            setUpdating(true);
+            try {
+              await handleUpdateStatus(order.id, order.status, newStatus);
+              Alert.alert("Success", `Order marked as "${newStatus}"`);
+            } catch (error) {
+              console.error("Error updating order status:", error);
+              Alert.alert("Error", "Failed to update order status");
+            } finally {
+              setUpdating(false);
+            }
+            // try {
+            //   const batch = writeBatch(db);
+            //   const orderRef = doc(db, "orders", order.id);
+            //   const sellerRef = doc(db, "sellers", user.uid);
+
+            //   // Update order status
+            //   batch.update(orderRef, {
+            //     status: newStatus,
+            //     updatedAt: new Date(),
+            //   });
+
+            //   // Update seller analytics if needed
+            //   const currentStatusKey = statusToAnalyticsKey(order.status);
+            //   const newStatusKey = statusToAnalyticsKey(newStatus);
+
+            //   batch.update(sellerRef, {
+            //     [`orderStatusCounts.${currentStatusKey}`]: increment(-1),
+            //     [`orderStatusCounts.${newStatusKey}`]: increment(1),
+            //   });
+
+            //   await batch.commit();
+
+            //   setOrder({ ...order, status: newStatus });
+            //   Alert.alert("Success", "Order status updated successfully");
+            // } catch (error) {
+            //   console.error("Error updating status:", error);
+            //   Alert.alert("Error", "Failed to update order status");
+            // } finally {
+            //   setUpdating(false);
+            // }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleContactCustomer = () => {
+    if (!customer) return;
+
+    router.push({
+      pathname: "/(messages)/chat",
+      params: {
+        recipientId: customer.uid,
+        recipientName: customer.fullName,
+      },
+    });
+  };
+
+  const getNextStatus = (currentStatus: OrderStatus): OrderStatus | null => {
+    switch (currentStatus) {
+      case "paid":
+        return "Processing";
+      case "Processing":
+        return "In Transit";
+      case "In Transit":
+        return "Completed";
+      default:
+        return null;
     }
   };
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" />
-      </View>
+      <SafeAreaView
+        className="flex-1 justify-center items-center"
+        style={{ backgroundColor: colors.background }}
+      >
+        <ActivityIndicator size="large" color={colors.accent} />
+      </SafeAreaView>
     );
   }
 
   if (!order) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text>Order not found.</Text>
-      </View>
+      <SafeAreaView
+        className="flex-1 justify-center items-center"
+        style={{ backgroundColor: colors.background }}
+      >
+        <MaterialIcons name="error-outline" size={48} color={colors.text} />
+        <Text className="text-lg mt-3" style={{ color: colors.text }}>
+          Order not found
+        </Text>
+      </SafeAreaView>
     );
   }
 
-  const { shippingAddress } = order;
+  const nextStatus = getNextStatus(order.status);
+  const statusColor = getStatusColor(order.status);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: colors.background }}
+    >
       <Stack.Screen
         options={{
-          title: `Order #${order.id.substring(0, 6)}`,
-          headerTitleAlign: "center",
+          title: `Order #${order.id.substring(0, 8)}`,
         }}
       />
-      <ScrollView>
-        <View className="p-4">
-          <View className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-4">
-            <InfoRow
-              icon="person-outline"
-              label="Customer"
-              value={customer?.fullName || "N/A"}
-            />
-            <InfoRow
-              icon="call-outline"
-              label="Phone Number"
-              value={customer?.phoneNumber || "N/A"}
-            />
-            <InfoRow
-              icon="location-outline"
-              label="Shipping Address"
-              value={`${shippingAddress?.fullAddress}`}
-            />
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ opacity: fadeAnim }}
+      >
+        <View className="px-4 py-4">
+          {/* Order Status Banner */}
+          <View
+            className="rounded-2xl p-4 mb-4 border"
+            style={{
+              backgroundColor: `${statusColor}15`,
+              borderColor: `${statusColor}30`,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text
+                  className="text-xs"
+                  style={{ color: colors.secondaryText }}
+                >
+                  Order Status
+                </Text>
+                <Text
+                  className="text-xl font-bold mt-1"
+                  style={{ color: statusColor }}
+                >
+                  {order.status}
+                </Text>
+              </View>
+              <MaterialIcons
+                name={
+                  order.status === "Completed"
+                    ? "check-circle"
+                    : order.status === "Cancelled"
+                    ? "cancel"
+                    : "pending"
+                }
+                size={40}
+                color={statusColor}
+              />
+            </View>
+            <Text
+              className="text-xs mt-2"
+              style={{ color: colors.secondaryText }}
+            >
+              Placed on{" "}
+              {order.createdAt.toDate().toLocaleDateString("en-US", {
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
           </View>
 
-          <View className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-4">
-            <Text className="text-lg font-bold mb-3">Items</Text>
-            {order.items.map((item) => (
-              <OrderItemCard key={item.pid} item={item} />
+          {/* Customer Information */}
+          <View
+            className="rounded-2xl p-4 mb-4 border"
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor:
+                effectiveTheme === "dark" ? "#ffffff10" : "#00000010",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Text
+              className="text-btn_title font-MuseoModerno_Medium mb-3"
+              style={{ color: colors.text }}
+            >
+              Customer Information
+            </Text>
+
+            <InfoRow
+              icon="person-outline"
+              label="Customer Name"
+              value={order.userName || customer?.fullName || "N/A"}
+              effectiveTheme={effectiveTheme}
+            />
+
+            <View className="h-px" style={{ backgroundColor: colors.border }} />
+
+            <InfoRow
+              icon="location-outline"
+              label="Delivery Address"
+              value={`${order.shippingAddress.fullAddress}`}
+              effectiveTheme={effectiveTheme}
+            />
+
+            {customer && (
+              <>
+                <View
+                  className="h-px"
+                  style={{ backgroundColor: colors.border }}
+                />
+                <InfoRow
+                  icon="call-outline"
+                  label="Contact Customer"
+                  value={customer.phoneNumber || "Send Message"}
+                  effectiveTheme={effectiveTheme}
+                  onPress={handleContactCustomer}
+                />
+              </>
+            )}
+          </View>
+
+          {/* Order Items */}
+          <View
+            className="rounded-2xl p-4 mb-4 border"
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor:
+                effectiveTheme === "dark" ? "#ffffff10" : "#00000010",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Text
+              className="text-btn_title font-MuseoModerno_Medium mb-3"
+              style={{ color: colors.text }}
+            >
+              Order Items ({order.items.length})
+            </Text>
+            {order.items.map((item, index) => (
+              <OrderItemCard
+                key={`${item.pid}-${index}`}
+                item={item}
+                effectiveTheme={effectiveTheme}
+              />
             ))}
           </View>
 
-          <View className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-4">
-            <Text className="text-lg font-bold mb-3">Summary</Text>
-            <View className="flex-row justify-between mb-1">
-              <Text className="text-gray-600">Sub-total</Text>
-              <Text className="text-gray-800 font-medium">
-                ${order.total.toFixed(2)}
-              </Text>
+          {/* Order Summary */}
+          <View
+            className="rounded-2xl p-4 mb-4 border"
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor:
+                effectiveTheme === "dark" ? "#ffffff10" : "#00000010",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Text
+              className="text-btn_title font-MuseoModerno_Medium mb-3"
+              style={{ color: colors.text }}
+            >
+              Payment Summary
+            </Text>
+
+            <View className="space-y-2">
+              <View className="flex-row justify-between">
+                <Text style={{ color: colors.secondaryText }}>Subtotal</Text>
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  R{order.total.toFixed(2)}
+                </Text>
+              </View>
+
+              <View className="flex-row justify-between">
+                <Text style={{ color: colors.secondaryText }}>
+                  Delivery Fee
+                </Text>
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  Paid by customer
+                </Text>
+              </View>
+
+              <View
+                className="h-px my-2"
+                style={{ backgroundColor: colors.border }}
+              />
+
+              <View className="flex-row justify-between">
+                <Text
+                  className="text-lg font-bold"
+                  style={{ color: colors.text }}
+                >
+                  Total Earnings
+                </Text>
+                <Text
+                  className="text-lg font-bold"
+                  style={{ color: colors.accent }}
+                >
+                  R{order.total.toFixed(2)}
+                </Text>
+              </View>
             </View>
-            <View className="h-px bg-gray-100 my-2" />
-            <View className="flex-row justify-between">
-              <Text className="text-gray-800 font-bold text-lg">Total</Text>
-              <Text className="text-indigo-600 font-bold text-lg">
-                ${order.total.toFixed(2)}
-              </Text>
-            </View>
+
+            {order.paymentReference && (
+              <View
+                className="mt-3 pt-3 border-t"
+                style={{ borderColor: colors.border }}
+              >
+                <Text
+                  className="text-xs"
+                  style={{ color: colors.secondaryText }}
+                >
+                  Payment Reference: {order.paymentReference}
+                </Text>
+              </View>
+            )}
           </View>
 
-          <View className="mt-2">
-            {order.status === "Packing" && (
+          {/* Action Buttons */}
+          {nextStatus &&
+            order.status !== "Completed" &&
+            order.status !== "Cancelled" && (
               <TouchableOpacity
-                onPress={() => handleUpdateStatus("In Transit")}
-                className="bg-indigo-600 p-4 rounded-lg flex-row justify-center items-center"
+                onPress={() => handleUpdate(nextStatus)}
+                disabled={updating}
+                className="rounded-2xl p-4 flex-row justify-center items-center mb-4"
+                style={{
+                  backgroundColor: colors.accent,
+                  opacity: updating ? 0.7 : 1,
+                }}
               >
-                <Ionicons name="send-outline" size={20} color="white" />
-                <Text className="text-white font-bold text-base ml-2">
-                  Mark as Shipped
-                </Text>
+                {updating ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <MaterialIcons
+                      name={
+                        nextStatus === "Processing"
+                          ? "inventory"
+                          : nextStatus === "In Transit"
+                          ? "local-shipping"
+                          : nextStatus === "Completed"
+                          ? "check-circle"
+                          : "arrow-forward"
+                      }
+                      size={20}
+                      color="#ffffff"
+                    />
+                    <Text className="text-white font-bold text-base ml-2">
+                      Mark as {nextStatus}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
-            {order.status === "In Transit" && (
-              <TouchableOpacity
-                onPress={() => handleUpdateStatus("Delivered")}
-                className="bg-green-600 p-4 rounded-lg flex-row justify-center items-center"
+
+          {/* Cancel Order Option */}
+          {(order.status === "paid" || order.status === "Processing") && (
+            <TouchableOpacity
+              onPress={() => handleUpdate("Cancelled")}
+              disabled={updating}
+              className="rounded-2xl p-4 flex-row justify-center items-center border"
+              style={{
+                borderColor: "#ef4444",
+                opacity: updating ? 0.7 : 1,
+              }}
+            >
+              <MaterialIcons name="cancel" size={20} color="#ef4444" />
+              <Text
+                className="font-bold text-base ml-2"
+                style={{ color: "#ef4444" }}
               >
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={20}
-                  color="white"
-                />
-                <Text className="text-white font-bold text-base ml-2">
-                  Mark as Delivered
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                Cancel Order
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

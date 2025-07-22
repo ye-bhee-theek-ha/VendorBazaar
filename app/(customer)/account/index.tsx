@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,6 +15,164 @@ import { useAuth } from "@/src/context/AuthContext";
 import { MenuItem } from "@/app/(seller)/account";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
+import { Theme } from "@/src/constants/types.user";
+
+const ThemeToggle = () => {
+  const { theme, setTheme, effectiveTheme } = useTheme();
+  const [slideAnim] = React.useState(new Animated.Value(0));
+
+  React.useEffect(() => {
+    const position = theme === "light" ? 0 : theme === "dark" ? 1 : 2;
+    Animated.spring(slideAnim, {
+      toValue: position,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [theme]);
+
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+  };
+
+  const getIconColor = (themeOption: Theme) => {
+    if (theme === themeOption) {
+      return effectiveTheme === "dark" ? darkColors.text : lightColors.text;
+    }
+    return effectiveTheme === "dark" ? "#666" : "#999";
+  };
+
+  const toggleWidth = 300;
+  const buttonWidth = (toggleWidth - 8) / 3;
+
+  return (
+    <View
+      className="overflow-hidden rounded-t-2xl border"
+      style={{
+        borderColor:
+          effectiveTheme === "dark" ? darkColors.border : lightColors.border,
+      }}
+    >
+      <View
+        className="p-4"
+        style={{
+          backgroundColor:
+            effectiveTheme === "dark" ? darkColors.card : lightColors.card,
+        }}
+      >
+        <Text
+          className="text-btn_title font-MuseoModerno_Regular mb-3"
+          style={{
+            color:
+              effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          }}
+        >
+          Appearance
+        </Text>
+
+        <View
+          className="relative rounded-xl p-1"
+          style={{
+            backgroundColor: effectiveTheme === "dark" ? "#1a1a1a" : "#f3f4f6",
+            width: toggleWidth,
+            alignSelf: "center",
+          }}
+        >
+          {/* Sliding indicator */}
+          <Animated.View
+            className="absolute rounded-lg"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark" ? "#374151" : "#ffffff",
+              width: buttonWidth,
+              height: 33,
+              top: 4,
+              left: 4,
+              transform: [
+                {
+                  translateX: slideAnim.interpolate({
+                    inputRange: [0, 1, 2],
+                    outputRange: [0, buttonWidth, buttonWidth * 2],
+                  }),
+                },
+              ],
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 3,
+              elevation: 3,
+            }}
+          />
+
+          <View className="flex-row">
+            {/* Light Theme Button */}
+            <TouchableOpacity
+              onPress={() => handleThemeChange("light")}
+              className="flex-1 items-center justify-center py-2"
+              style={{ width: buttonWidth }}
+            >
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="sunny-outline"
+                  size={20}
+                  color={getIconColor("light")}
+                />
+                <Text
+                  className="ml-1.5 text-sm font-medium"
+                  style={{ color: getIconColor("light") }}
+                >
+                  Light
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Dark Theme Button */}
+            <TouchableOpacity
+              onPress={() => handleThemeChange("dark")}
+              className="flex-1 items-center justify-center py-2"
+              style={{ width: buttonWidth }}
+            >
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="moon-outline"
+                  size={20}
+                  color={getIconColor("dark")}
+                />
+                <Text
+                  className="ml-1.5 text-sm font-medium"
+                  style={{ color: getIconColor("dark") }}
+                >
+                  Dark
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* System Theme Button */}
+            <TouchableOpacity
+              onPress={() => handleThemeChange("system")}
+              className="flex-1 items-center justify-center py-2"
+              style={{ width: buttonWidth }}
+            >
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={20}
+                  color={getIconColor("system")}
+                />
+                <Text
+                  className="ml-1.5 text-sm font-medium"
+                  style={{ color: getIconColor("system") }}
+                >
+                  Auto
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -24,7 +183,6 @@ export default function AccountScreen() {
 
   const handleSignOut = async () => {
     await signOut();
-    // The AuthContext will handle redirecting to the login screen
   };
 
   return (
@@ -39,6 +197,7 @@ export default function AccountScreen() {
                 : lightColors.border,
           }}
         >
+          <ThemeToggle />
           {isSeller && (
             <MenuItem
               iconComponent={
@@ -50,7 +209,7 @@ export default function AccountScreen() {
               }
               effectiveTheme={effectiveTheme}
               text="Switch to Selling"
-              onPress={() => router.push("/(seller)/home")}
+              onPress={() => router.replace("/(seller)/home")}
             />
           )}
           <MenuItem
@@ -86,9 +245,11 @@ export default function AccountScreen() {
             effectiveTheme={effectiveTheme}
           />
           <MenuItem
-            icon="notifications-outline"
-            text="Notifications"
-            onPress={() => router.push("/notifications")}
+            icon="people-outline"
+            text="Following Sellers"
+            onPress={() => {
+              router.push("/(customer)/account/following-sellers");
+            }}
             effectiveTheme={effectiveTheme}
           />
         </View>

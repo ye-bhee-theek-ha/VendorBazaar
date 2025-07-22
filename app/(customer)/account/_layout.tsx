@@ -64,6 +64,8 @@ export default function AccountStackLayout() {
         }}
       />
       <Stack.Screen name="orders" options={{ title: "Orders" }} />
+      <Stack.Screen name="details" options={{ title: "My Details" }} />
+      <Stack.Screen name="address-book" options={{ title: "Address Book" }} />
     </Stack>
   );
 }

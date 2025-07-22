@@ -6,11 +6,17 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+} from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product } from "../constants/types.product";
 import { supabase } from "../lib/supabase";
-import { mapSupabaseToProduct } from "../helpers/helper.customer";
+import { mapSupabaseToProduct } from "../helpers/helper";
 
 interface Category {
   id: string;
@@ -54,26 +60,42 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
   // Effect to fetch categories from Firestore
   useEffect(() => {
-    const categoriesCollectionRef = collection(db, "categories");
-    const q = query(categoriesCollectionRef, orderBy("name", "asc"));
+    // Point directly to the MetaData document
+    const docRef = doc(db, "App", "MetaData");
+
     const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const categoryList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Category[];
-        setCategories([{ id: "All", name: "All" }, ...categoryList]);
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+
+          // Assuming the fields in your document are the categories
+          // e.g., { "Electronics": true, "Clothing": true, ... }
+          // We transform the object's keys into an array.
+          const categoryList = Object.keys(data).map((categoryName) => ({
+            id: categoryName.toLowerCase(), // e.g., 'electronics'
+            name: categoryName, // e.g., 'Electronics'
+          }));
+
+          // Sort alphabetically and add the "All" category
+          categoryList.sort((a, b) => a.name.localeCompare(b.name));
+          setCategories([{ id: "All", name: "All" }, ...categoryList]);
+        } else {
+          console.error("MetaData document not found!");
+          // Handle case where document doesn't exist
+        }
       },
-      (err) => {
+      (err: any) => {
         console.error("Failed to fetch categories:", err);
+        // Your existing fallback logic
         setCategories([
           { name: "electronics", id: "electronics" },
           { name: "clothing", id: "clothing" },
         ]);
-        console.log("first");
       }
     );
+
+    // Cleanup the listener on unmount
     return () => unsubscribe();
   }, []);
 
@@ -173,7 +195,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     loadingMore,
     error,
     hasMore,
-    filteredProducts: products, // For compatibility, though filtering is now server-side
+    filteredProducts: products,
   };
 
   return (

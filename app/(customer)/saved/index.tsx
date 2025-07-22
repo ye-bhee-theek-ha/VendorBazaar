@@ -24,7 +24,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, Stack } from "expo-router";
 import { ListItem } from "../home";
 import { supabase } from "@/src/lib/supabase";
-import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { mapSupabaseToProduct } from "@/src/helpers/helper";
 import { darkColors, lightColors } from "@/src/constants/Colors";
 import { useTheme } from "@/src/context/ThemeContext";
 import { ProductCardSkeleton } from "@/src/helpers/skeletons";

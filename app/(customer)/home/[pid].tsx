@@ -38,7 +38,7 @@ import {
   ProductOptionValue,
   Review,
 } from "@/src/constants/types.product";
-import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { mapSupabaseToProduct } from "@/src/helpers/helper";
 import { ErrorState, ProductDetailsSkeleton } from "@/src/helpers/skeletons";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";

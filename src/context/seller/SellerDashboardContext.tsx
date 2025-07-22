@@ -7,18 +7,28 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
+  doc,
   limit,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../AuthContext";
-import { Review } from "../../constants/types.product"; // Re-using Review type
+import { Review } from "../../constants/types.product";
 import { Order } from "../../constants/types.order";
+import { Seller } from "../../constants/types.seller";
 
 // --- Interfaces ---
 interface DashboardMetrics {
   salesToday: number;
+  salesMonth: number;
+  totalSales: number;
   newOrders: number;
-  unreadMessages: number; // This will be a placeholder for Supabase data
+  orderStatusCounts: {
+    paid: number;
+    processing: number;
+    inTransit: number;
+    completed: number;
+    cancelled: number;
+  };
 }
 
 interface ActivityItem {
@@ -51,8 +61,16 @@ export function SellerDashboardProvider({
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     salesToday: 0,
+    salesMonth: 0,
+    totalSales: 0,
     newOrders: 0,
-    unreadMessages: 0,
+    orderStatusCounts: {
+      paid: 0,
+      processing: 0,
+      inTransit: 0,
+      completed: 0,
+      cancelled: 0,
+    },
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,47 +83,80 @@ export function SellerDashboardProvider({
     }
 
     setLoading(true);
+    const unsubscribes: (() => void)[] = [];
 
-    // --- Data Fetching from Firebase ---
+    // 1. Listen to the seller document for pre-aggregated analytics
+    const sellerDocRef = doc(db, "sellers", user.uid);
+    const unsubscribeSeller = onSnapshot(
+      sellerDocRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const sellerData = docSnapshot.data() as Seller;
+          setMetrics((prev) => ({
+            ...prev,
+            totalSales: sellerData.totalSales || 0,
+            newOrders: sellerData.orderStatusCounts?.paid || 0,
+            orderStatusCounts: sellerData.orderStatusCounts || {
+              paid: 0,
+              processing: 0,
+              inTransit: 0,
+              completed: 0,
+              cancelled: 0,
+            },
+          }));
+        }
+        setLoading(false); // Main stats loaded
+      },
+      (err) => {
+        console.error("Failed to fetch seller analytics:", err);
+        setError("Could not load seller analytics.");
+        setLoading(false);
+      }
+    );
+    unsubscribes.push(unsubscribeSeller);
 
-    // 1. Fetch recent orders for activity feed and metrics
-    const ordersRef = collection(db, "orders"); // Assuming a top-level orders collection
-    const ordersQuery = query(
+    // 2. Listen to this month's orders for time-based sales calcs & recent order activity
+    const ordersRef = collection(db, "orders");
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthlyOrdersQuery = query(
       ordersRef,
       where("sellerId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(10) // Get the 10 most recent orders for the activity feed
+      where("createdAt", ">=", Timestamp.fromDate(startOfMonth)),
+      orderBy("createdAt", "desc")
     );
 
-    const unsubscribeOrders = onSnapshot(
-      ordersQuery,
+    const unsubscribeMonthlyOrders = onSnapshot(
+      monthlyOrdersQuery,
       (snapshot) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         let salesToday = 0;
-        const newOrders = snapshot.docs.filter(
-          (doc) =>
-            doc.data().status === "New" || doc.data().status === "Processing"
-        ).length;
+        let salesMonth = 0;
 
-        const orderActivities = snapshot.docs.map((doc) => {
+        const orderActivities = snapshot.docs.slice(0, 10).map((doc) => {
           const orderData = doc.data() as Order;
           const orderDate = orderData.createdAt.toDate();
+
+          salesMonth += orderData.total;
           if (orderDate >= today) {
             salesToday += orderData.total;
           }
+
           return {
             id: doc.id,
-            type: "order",
+            type: "order" as const,
             title: `New Order #${doc.id.substring(0, 6)}`,
             subtitle: `Total: $${orderData.total.toFixed(2)}`,
             amount: orderData.total,
             createdAt: orderData.createdAt,
-          } as ActivityItem;
+          };
         });
 
-        setMetrics((prev) => ({ ...prev, salesToday, newOrders }));
+        setMetrics((prev) => ({ ...prev, salesToday, salesMonth }));
         setActivities((prev) =>
           [...orderActivities, ...prev.filter((a) => a.type !== "order")].sort(
             (a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()
@@ -113,12 +164,13 @@ export function SellerDashboardProvider({
         );
       },
       (err) => {
-        console.error("Failed to fetch seller orders:", err);
-        setError("Could not load order data.");
+        console.error("Failed to fetch monthly orders:", err);
+        setError("Could not load order data for sales calculation.");
       }
     );
+    unsubscribes.push(unsubscribeMonthlyOrders);
 
-    // 2. Fetch recent reviews for activity feed
+    // 3. Fetch recent reviews for activity feed
     const reviewsRef = collection(db, "reviews");
     const reviewsQuery = query(
       reviewsRef,
@@ -132,11 +184,11 @@ export function SellerDashboardProvider({
         const reviewData = doc.data() as Review;
         return {
           id: doc.id,
-          type: "review",
+          type: "review" as const,
           title: `${reviewData.userName} left a ${reviewData.rating}-star review`,
           subtitle: `"${reviewData.text.substring(0, 40)}..."`,
           createdAt: reviewData.createdAt,
-        } as ActivityItem;
+        };
       });
       setActivities((prev) =>
         [...reviewActivities, ...prev.filter((a) => a.type !== "review")].sort(
@@ -144,13 +196,11 @@ export function SellerDashboardProvider({
         )
       );
     });
-
-    setLoading(false);
+    unsubscribes.push(unsubscribeReviews);
 
     // Cleanup listeners on unmount
     return () => {
-      unsubscribeOrders();
-      unsubscribeReviews();
+      unsubscribes.forEach((unsub) => unsub());
     };
   }, [user]);
 

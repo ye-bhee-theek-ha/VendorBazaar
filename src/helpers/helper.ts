@@ -1,3 +1,4 @@
+import { OrderStatus } from "../constants/types.order";
 import { Product } from "../constants/types.product";
 
 // Helper to map Supabase snake_case to our camelCase Product type
@@ -24,4 +25,9 @@ export const mapSupabaseToProduct = (data: any): Product => {
     disabled: data.disabled || false,
     disabledAdmin: data.disabled_admin || false,
   };
+};
+
+export const statusToAnalyticsKey = (status: OrderStatus) => {
+  if (status === "In Transit") return "inTransit";
+  return status.toLowerCase();
 };

@@ -11,7 +11,7 @@ import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "../AuthContext";
 import { Product } from "@/src/constants/types.product";
 import { Alert } from "react-native";
-import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { mapSupabaseToProduct } from "@/src/helpers/helper";
 
 interface SellerProductContextType {
   products: Product[];

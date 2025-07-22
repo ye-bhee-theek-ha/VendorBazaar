@@ -3,9 +3,9 @@ import { CartItem } from "./types.product";
 import { Address } from "./types.user";
 
 export type OrderStatus =
-  | "Packing"
+  | "paid"
+  | "Processing"
   | "In Transit"
-  | "Delivered"
   | "Completed"
   | "Cancelled";
 

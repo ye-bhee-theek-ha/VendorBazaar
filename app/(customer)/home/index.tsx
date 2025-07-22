@@ -228,6 +228,8 @@ export default function CustomerHomeScreen() {
 
   return (
     <View style={{ flex: 1 }} className="flex justify-start mt-2">
+      <Link href="https://expo.dev">Open a URL</Link>
+
       <FlatList
         data={loading ? [] : products}
         keyExtractor={(item, index) => `${item.pid}-${index}`}

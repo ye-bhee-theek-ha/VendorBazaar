@@ -33,7 +33,7 @@ import {
   StatusBar,
 } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { mapSupabaseToProduct } from "@/src/helpers/helper";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
 import { BlurView } from "expo-blur";

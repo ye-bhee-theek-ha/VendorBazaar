@@ -137,6 +137,8 @@ const ConversationsScreen = () => {
   const { conversations, loading, hasMore, fetchMoreConversations, error } =
     useMessaging();
 
+  console.log("DEBUG: Conversations data:", conversations);
+
   const { effectiveTheme } = useTheme();
 
   if (loading && conversations.length === 0) {

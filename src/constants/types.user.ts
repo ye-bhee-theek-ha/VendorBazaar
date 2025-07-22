@@ -5,9 +5,7 @@ export interface AppUser extends User {
   fullName?: string;
   role?: "customer" | "seller";
   OnboardingCompleted: string;
-
   address: Address[];
-
   dob?: Date;
   gender?: "male" | "female";
   likedProductIds: string[];

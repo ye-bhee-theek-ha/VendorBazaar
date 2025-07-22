@@ -17,10 +17,22 @@ export interface Seller {
   paystackAccountId: string;
   paystackSubaccountCode: string;
 
+  // analytics fields here
+  // TODO update
   avgRating: number;
   totalReviews: number;
   totalProducts: number;
   totalFollowers: number;
+
+  totalSales: number;
+  totalOrders: number;
+  orderStatusCounts: {
+    paid: number;
+    processing: number;
+    inTransit: number;
+    completed: number;
+    cancelled: number;
+  };
 
   // Verification & Status
   verified: boolean; // Master verification status

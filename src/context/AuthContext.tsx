@@ -35,6 +35,7 @@ import { AppUser } from "../constants/types.user";
 
 import { Alert } from "react-native";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { convertTimestampToDate } from "../helpers/formatDate";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -42,7 +43,7 @@ interface AuthContextType {
   loading: boolean;
   initialAuthLoading: boolean;
   likedProductIds: string[];
-
+  ReFetchUser: () => Promise<void>;
   toggleLikeProduct: (productId: string) => Promise<void>;
   toggleFollowSeller: (sellerId: string) => Promise<void>;
   signIn: (email: string, pass: string) => Promise<User | null>;
@@ -92,7 +93,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           // User is signed in
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
-          console.log("DEBUG: User document snapshot:", userDocSnap.exists());
 
           if (userDocSnap.exists()) {
             // User document exists, merge data
@@ -100,6 +100,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             setAppUser({
               ...firebaseUser,
               fullName: userData.fullName,
+              dob: userData.dob ? convertTimestampToDate(userData.dob) : null,
+              gender: userData.gender || null,
+              photoURL: userData.photoURL || firebaseUser.photoURL || null,
               role: userData.role,
               OnboardingCompleted: userData.OnboardingCompleted || "false",
               likedProductIds: userData.likedProductIds || [],
@@ -396,7 +399,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const ReFetchUser = async () => {};
+  const ReFetchUser = async () => {
+    if (!firebaseUser) return;
+
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setAppUser({
+          ...firebaseUser,
+          fullName: userData.fullName,
+          role: userData.role,
+          OnboardingCompleted: userData.OnboardingCompleted || "false",
+          likedProductIds: userData.likedProductIds || [],
+          FollowingSellersIds: userData.FollowingSellersIds || [],
+          address: userData.address || [],
+          gender: userData.gender || null,
+          dob: convertTimestampToDate(userData.dob),
+          photoURL: userData.photoURL || firebaseUser.photoURL || null,
+        } as AppUser);
+        setLikedProductIds(userData.likedProductIds || []);
+      }
+    } catch (error) {
+      console.error("Error refetching user data:", error);
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -406,6 +435,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         loading,
         initialAuthLoading,
         likedProductIds,
+        ReFetchUser,
         toggleLikeProduct,
         toggleFollowSeller,
         signIn,

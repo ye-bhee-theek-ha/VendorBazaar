@@ -43,7 +43,7 @@ export default function SellerOrdersLayout() {
         name="[orderId]"
         options={{
           title: "Order Details",
-          headerTitleAlign: "center",
+          headerTitleAlign: "left",
           headerShadowVisible: false,
           headerStyle: {
             backgroundColor:

@@ -171,17 +171,17 @@ export default function CheckoutScreen() {
               style={{ backgroundColor: colors.accent }}
               onPress={() => {
                 setModalVisible(false);
-                // router.push("/(customer)/account/addresses"); //TODO Navigate to add new address screen
+                router.push("/(customer)/account/address-book");
               }}
             >
               <Ionicons
                 name="add-circle-outline"
                 size={24}
-                color={colors.background}
+                color={colors.text}
               />
               <Text
                 className="text-base font-MuseoModerno_SemiBold ml-2.5"
-                style={{ color: colors.background }}
+                style={{ color: colors.text }}
               >
                 Add New Address
               </Text>

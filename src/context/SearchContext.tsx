@@ -21,7 +21,7 @@ import { db } from "../lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Product } from "../constants/types.product";
 import { supabase } from "../lib/supabase";
-import { mapSupabaseToProduct } from "../helpers/helper.customer";
+import { mapSupabaseToProduct } from "../helpers/helper";
 
 const RECENT_SEARCHES_KEY = "recent_searches";
 

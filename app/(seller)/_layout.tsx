@@ -1,4 +1,4 @@
-// app/(tabs)/_layout.tsx
+// app/_layout.tsx
 import React from "react";
 import { Tabs, usePathname, useSegments, Redirect } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"; // Or your preferred icon library
@@ -13,21 +13,6 @@ import {
 import { SellerProductProvider } from "@/src/context/seller/SellerProductContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
-
-const CustomHeader = ({
-  title,
-  showHeader,
-}: {
-  title: string;
-  showHeader?: boolean;
-}) => {
-  if (!showHeader) return null;
-  return (
-    <View className="bg-blue-600 pt-10 pb-4 px-4 items-center justify-center shadow-md">
-      <Text className="text-white text-xl font-bold">{title}</Text>
-    </View>
-  );
-};
 
 function SellerTabLayout() {
   const { user, initialAuthLoading } = useAuth();

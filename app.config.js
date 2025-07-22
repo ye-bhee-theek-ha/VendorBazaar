@@ -18,7 +18,8 @@ export default {
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.aleeabdullah.SafeBuyAfrica",
-      "googleServicesFile": process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist"
+      "googleServicesFile": process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist",
+      "associatedDomains": ["applinks:your-domain.com"]
     },
     "android": {
       "adaptiveIcon": {

@@ -43,7 +43,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { supabase } from "@/src/lib/supabase";
-import { mapSupabaseToProduct } from "@/src/helpers/helper.customer";
+import { mapSupabaseToProduct } from "@/src/helpers/helper";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
 

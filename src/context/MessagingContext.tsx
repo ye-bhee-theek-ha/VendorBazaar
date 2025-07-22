@@ -164,6 +164,7 @@ export const MessagingProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (user) {
+      console.log("DEBUG: Fetching conversations for user:", user.uid);
       fetchConversations();
     }
   }, [user, fetchConversations]);
