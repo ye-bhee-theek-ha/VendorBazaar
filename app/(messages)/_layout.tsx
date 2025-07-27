@@ -43,20 +43,21 @@ export default function MessagesLayout() {
             />
           </TouchableOpacity>
         ),
-        headerRight: () => (
-          <TouchableOpacity
-            className="mr-4"
-            onPress={() => router.push("/notifications")}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={
-                effectiveTheme === "dark" ? darkColors.text : lightColors.text
-              }
-            />
-          </TouchableOpacity>
-        ),
+        // TODO: Notification-btn
+        // headerRight: () => (
+        //   <TouchableOpacity
+        //     className="mr-4"
+        //     onPress={() => router.push("/notifications")}
+        //   >
+        //     <Ionicons
+        //       name="notifications-outline"
+        //       size={24}
+        //       color={
+        //         effectiveTheme === "dark" ? darkColors.text : lightColors.text
+        //       }
+        //     />
+        //   </TouchableOpacity>
+        // ),
       }}
     >
       <Stack.Screen

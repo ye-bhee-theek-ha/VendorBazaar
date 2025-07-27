@@ -57,7 +57,12 @@ export default function HomeStackLayout() {
         name="[pid]"
         options={{ headerShown: false, animation: "ios_from_right" }}
       />
-      <Stack.Screen name="seller/[sellerId]" />
+      <Stack.Screen
+        name="seller/[sellerId]"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
     </Stack>
   );
 }

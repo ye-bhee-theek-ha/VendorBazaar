@@ -41,6 +41,7 @@ interface AuthContextType {
   user: AppUser | null;
   firebaseUser: User | null;
   loading: boolean;
+  FollowingLoading: boolean;
   initialAuthLoading: boolean;
   likedProductIds: string[];
   ReFetchUser: () => Promise<void>;
@@ -71,6 +72,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [FollowingLoading, setFollowingLoading] = useState<boolean>(false);
+
   const [initialAuthLoading, setInitialAuthLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -193,21 +196,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const toggleFollowSeller = async (sellerId: string) => {
     if (!appUser) return;
+    setFollowingLoading(true);
     const userDocRef = doc(db, "users", appUser.uid);
     const sellerDocRef = doc(db, "sellers", sellerId);
     const isFollowing = appUser.FollowingSellersIds.includes(sellerId);
-
-    isFollowing
-      ? setAppUser({
-          ...appUser,
-          FollowingSellersIds: appUser.FollowingSellersIds.filter(
-            (id) => id !== sellerId
-          ),
-        })
-      : setAppUser({
-          ...appUser,
-          FollowingSellersIds: [...appUser.FollowingSellersIds, sellerId],
-        });
 
     try {
       if (isFollowing) {
@@ -223,13 +215,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           FollowingSellersIds: arrayUnion(sellerId),
         });
         await updateDoc(sellerDocRef, {
-          FollowersIds: arrayUnion(sellerId),
+          FollowersIds: arrayUnion(appUser.uid),
         });
         await updateDoc(sellerDocRef, { totalFollowers: increment(1) });
       }
     } catch (error) {
       console.error("Error toggling Follow status in Firestore:", error);
+    } finally {
+      setFollowingLoading(false);
     }
+
+    isFollowing
+      ? setAppUser({
+          ...appUser,
+          FollowingSellersIds: appUser.FollowingSellersIds.filter(
+            (id) => id !== sellerId
+          ),
+        })
+      : setAppUser({
+          ...appUser,
+          FollowingSellersIds: [...appUser.FollowingSellersIds, sellerId],
+        });
   };
 
   const signIn = async (email: string, pass: string): Promise<User | null> => {
@@ -433,6 +439,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         user: appUser,
         firebaseUser,
         loading,
+        FollowingLoading,
         initialAuthLoading,
         likedProductIds,
         ReFetchUser,

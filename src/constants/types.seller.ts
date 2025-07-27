@@ -6,6 +6,7 @@ export interface Seller {
   shopBannerUrl?: string;
   bio?: string;
   memberSince: Timestamp;
+  FollowersIds?: string[];
 
   address?: {
     street: string;

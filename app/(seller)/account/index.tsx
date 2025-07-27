@@ -10,7 +10,11 @@ import {
   Animated,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  AntDesign,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
@@ -290,6 +294,19 @@ export default function AccountScreen() {
             icon="person-outline"
             text="My Details"
             onPress={() => router.push("/(seller)/account/details")}
+            effectiveTheme={effectiveTheme}
+          />
+          <MenuItem
+            iconComponent={
+              <AntDesign
+                name="notification"
+                size={24}
+                color={effectiveTheme === "dark" ? "white" : "black"}
+                className="-scale-x-100"
+              />
+            }
+            text="Send Notifications"
+            onPress={() => router.push("/(seller)/account/send-notifications")}
             effectiveTheme={effectiveTheme}
           />
         </View>

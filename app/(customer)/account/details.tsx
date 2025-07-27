@@ -1,4 +1,4 @@
-// app/(seller)/account/details.tsx
+// app/(customer)/account/details.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -20,186 +20,81 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { darkColors, lightColors } from "@/src/constants/Colors";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { db, storage } from "@/src/lib/firebase";
+import { updateProfile } from "firebase/auth";
 import * as ImagePicker from "expo-image-picker";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Seller } from "@/src/constants/types.seller"; // Assuming you have this type defined
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 
-interface SellerFormData {
-  shopName: string;
-  bio: string;
-  street: string;
-  city: string;
-  postalCode: string;
-  province: string;
+interface FormData {
+  fullName: string;
+  email: string;
+  gender: "male" | "female" | null;
+  dob: Date | null;
+  photoURL: string | null;
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
-// InputField component defined outside to prevent re-creation on re-renders
-const InputField = ({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  fieldKey,
-  editable = true,
-  icon,
-  effectiveTheme,
-  focusedField,
-  onFocus,
-  onBlur,
-  animation,
-  multiline = false,
-}: {
-  label: string;
-  value: string;
-  onChangeText?: (text: string) => void;
-  placeholder: string;
-  fieldKey: string;
-  editable?: boolean;
-  icon: string;
-  effectiveTheme: "light" | "dark";
-  focusedField: string | null;
-  onFocus: () => void;
-  onBlur: () => void;
-  animation: Animated.Value;
-  multiline?: boolean;
-}) => {
-  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
-
-  return (
-    <Animated.View
-      style={{
-        transform: [{ scale: animation }],
-        marginBottom: 20,
-      }}
-    >
-      <View className="flex-row items-center mb-2">
-        <Ionicons name={icon as any} size={20} color={colors.text} />
-        <Text
-          className="text-sm font-medium ml-2"
-          style={{ color: colors.secondaryText }}
-        >
-          {label}
-        </Text>
-      </View>
-      <AnimatedTextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={effectiveTheme === "dark" ? "#666" : "#999"}
-        editable={editable}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        multiline={multiline}
-        className="text-base px-4 py-3 rounded-xl"
-        style={{
-          backgroundColor:
-            effectiveTheme === "dark"
-              ? focusedField === fieldKey
-                ? "#2a2a2a"
-                : "#1a1a1a"
-              : focusedField === fieldKey
-              ? "#ffffff"
-              : "#f3f4f6",
-          color: colors.text,
-          borderWidth: focusedField === fieldKey ? 2 : 1,
-          borderColor:
-            focusedField === fieldKey ? colors.accent : colors.border,
-          opacity: editable ? 1 : 0.6,
-          minHeight: multiline ? 100 : 0,
-          textAlignVertical: multiline ? "top" : "center",
-        }}
-      />
-    </Animated.View>
-  );
-};
-
-export default function EditSellerDetailsScreen() {
+export default function EditDetailsScreen() {
   const router = useRouter();
-  const { user, ReFetchUser } = useAuth(); // Assuming useAuth provides the authenticated user
+  const { user, firebaseUser, ReFetchUser } = useAuth();
   const { effectiveTheme } = useTheme();
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-
-  const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [formData, setFormData] = useState<SellerFormData>({
-    shopName: "",
-    bio: "",
-    street: "",
-    city: "",
-    postalCode: "",
-    province: "",
+  // Form state
+  const [formData, setFormData] = useState<FormData>({
+    fullName: user?.fullName || "",
+    email: user?.email || "",
+    gender: user?.gender || null,
+    dob: user?.dob || null,
+    photoURL: user?.photoURL || null,
   });
 
+  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const imageScaleAnim = useRef(new Animated.Value(1)).current;
 
+  // Individual field animations
   const fieldAnimations = {
-    shopName: useRef(new Animated.Value(1)).current,
-    bio: useRef(new Animated.Value(1)).current,
-    address: useRef(new Animated.Value(1)).current,
+    fullName: useRef(new Animated.Value(1)).current,
+    email: useRef(new Animated.Value(1)).current,
+    gender: useRef(new Animated.Value(1)).current,
+    dob: useRef(new Animated.Value(1)).current,
   };
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchSellerData = async () => {
-      setInitialLoading(true);
-      try {
-        const sellerDocRef = doc(db, "sellers", user.uid);
-        const docSnap = await getDoc(sellerDocRef);
-        if (docSnap.exists()) {
-          const sellerData = docSnap.data() as Seller;
-          setFormData({
-            shopName: sellerData.shopName || "",
-            bio: sellerData.bio || "",
-            street: sellerData.address?.street || "",
-            city: sellerData.address?.city || "",
-            postalCode: sellerData.address?.postalCode || "",
-            province: sellerData.address?.province || "",
-          });
-          setBannerUri(sellerData.shopBannerUrl || null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch seller data:", error);
-        Alert.alert("Error", "Could not load your shop details.");
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-
-    fetchSellerData();
-  }, [user]);
-
-  useEffect(() => {
-    if (!initialLoading) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 20,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [initialLoading]);
+    // Entry animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 20,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const animateFieldFocus = (field: string, focused: boolean) => {
     Animated.spring(fieldAnimations[field as keyof typeof fieldAnimations], {
@@ -210,111 +105,313 @@ export default function EditSellerDetailsScreen() {
     }).start();
   };
 
-  const handleImagePick = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Sorry, we need camera roll permissions to make this work!"
-      );
-      return;
-    }
-
-    let result = await ImagePicker.launchImageLibraryAsync({
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.7,
+      quality: 0.8,
+      aspect: [1, 1],
     });
 
-    if (!result.canceled) {
-      setBannerUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      await uploadImage(result.assets[0].uri);
     }
   };
 
-  const handleSave = async () => {
+  const uploadImage = async (uri: string) => {
     if (!user) return;
 
-    setLoading(true);
-    let newBannerUrl = bannerUri;
-
+    setUploadingImage(true);
     try {
-      // Upload new banner if it's a local URI
-      if (bannerUri && bannerUri.startsWith("file://")) {
-        setUploadingImage(true);
-        const storage = getStorage();
-        const response = await fetch(bannerUri);
-        const blob = await response.blob();
-        const storageRef = ref(storage, `shop_banners/${user.uid}`);
-
-        await uploadBytes(storageRef, blob);
-        newBannerUrl = await getDownloadURL(storageRef);
-        setUploadingImage(false);
+      // Delete old image if exists
+      if (
+        user.photoURL &&
+        user.photoURL.includes("firebasestorage.googleapis.com")
+      ) {
+        await deleteImage(user.photoURL);
       }
 
-      // Update Firestore seller document
-      const sellerDocRef = doc(db, "sellers", user.uid);
-      await updateDoc(sellerDocRef, {
-        shopName: formData.shopName,
-        bio: formData.bio,
-        shopBannerUrl: newBannerUrl,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          postalCode: formData.postalCode,
-          province: formData.province,
-        },
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storageRef = ref(
+        storage,
+        `users/${user.uid}/profile-${Date.now()}.jpg`
+      );
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      const downloadURL = await new Promise<string>((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            // You can add upload progress here if needed
+          },
+          (error) => reject(error),
+          () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
+        );
       });
 
-      await ReFetchUser(); // Re-fetches user data in AuthContext
-      router.back();
+      setFormData({ ...formData, photoURL: downloadURL });
+
+      // Animate image change
+      Animated.sequence([
+        Animated.timing(imageScaleAnim, {
+          toValue: 0.8,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(imageScaleAnim, {
+          toValue: 1,
+          tension: 20,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (error) {
-      console.error("Error updating seller details:", error);
-      Alert.alert(
-        "Error",
-        "Failed to update your shop details. Please try again."
-      );
+      console.error("Error uploading image:", error);
+      Alert.alert("Error", "Failed to upload image. Please try again.");
     } finally {
-      setLoading(false);
       setUploadingImage(false);
     }
   };
 
-  if (initialLoading) {
-    return (
-      <SafeAreaView
-        className="flex-1 justify-center items-center"
+  const deleteImage = async (imageUrl: string) => {
+    if (!imageUrl || !imageUrl.startsWith("https://")) return;
+    try {
+      const imageRef = ref(storage, imageUrl);
+      await deleteObject(imageRef);
+    } catch (error: any) {
+      if (error.code !== "storage/object-not-found") {
+        console.error("Error deleting old image:", error);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !firebaseUser) return;
+
+    setLoading(true);
+    try {
+      // Update Firebase Auth profile
+      const updates: any = {};
+      if (formData.fullName !== user.fullName) {
+        updates.displayName = formData.fullName;
+      }
+      if (formData.photoURL !== user.photoURL) {
+        updates.photoURL = formData.photoURL;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await updateProfile(firebaseUser, updates);
+      }
+
+      // Update Firestore user document
+      const userDocRef = doc(db, "users", user.uid);
+      const firestoreUpdates: any = {
+        fullName: formData.fullName,
+        gender: formData.gender,
+        photoURL: formData.photoURL,
+      };
+
+      // Convert Date to Firestore Timestamp
+      if (formData.dob) {
+        firestoreUpdates.dob = Timestamp.fromDate(formData.dob);
+      } else {
+        firestoreUpdates.dob = null;
+      }
+
+      await updateDoc(userDocRef, firestoreUpdates);
+
+      await ReFetchUser();
+      router.back();
+    } catch (error) {
+      console.error("Error updating user details:", error);
+      Alert.alert("Error", "Failed to update your details. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const InputField = ({
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    fieldKey,
+    editable = true,
+    icon,
+  }: {
+    label: string;
+    value: string;
+    onChangeText?: (text: string) => void;
+    placeholder: string;
+    fieldKey: string;
+    editable?: boolean;
+    icon: string;
+  }) => (
+    <Animated.View
+      style={{
+        transform: [
+          { scale: fieldAnimations[fieldKey as keyof typeof fieldAnimations] },
+        ],
+        marginBottom: 20,
+      }}
+    >
+      <View className="flex-row items-center mb-2">
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color={effectiveTheme === "dark" ? darkColors.text : lightColors.text}
+        />
+        <Text
+          className="text-sm font-medium ml-2"
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+        >
+          {label}
+        </Text>
+      </View>
+      <AnimatedTextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={effectiveTheme === "dark" ? "#666" : "#999"}
+        editable={editable}
+        onFocus={() => {
+          setFocusedField(fieldKey);
+          animateFieldFocus(fieldKey, true);
+        }}
+        onBlur={() => {
+          setFocusedField(null);
+          animateFieldFocus(fieldKey, false);
+        }}
+        className="text-base px-4 py-3 rounded-xl"
         style={{
           backgroundColor:
             effectiveTheme === "dark"
-              ? darkColors.background
-              : lightColors.background,
+              ? focusedField === fieldKey
+                ? "#2a2a2a"
+                : "#1a1a1a"
+              : focusedField === fieldKey
+              ? "#ffffff"
+              : "#f3f4f6",
+          color: effectiveTheme === "dark" ? darkColors.text : lightColors.text,
+          borderWidth: focusedField === fieldKey ? 2 : 1,
+          borderColor:
+            focusedField === fieldKey
+              ? effectiveTheme === "dark"
+                ? darkColors.accent
+                : lightColors.accent
+              : effectiveTheme === "dark"
+              ? darkColors.border
+              : lightColors.border,
+          opacity: editable ? 1 : 0.6,
         }}
-      >
-        <ActivityIndicator
-          size="large"
-          color={
-            effectiveTheme === "dark" ? darkColors.accent : lightColors.accent
-          }
-        />
-      </SafeAreaView>
-    );
-  }
+      />
+    </Animated.View>
+  );
 
-  return (
-    <SafeAreaView
-      className="flex-1"
+  const GenderSelector = () => (
+    <Animated.View
       style={{
-        backgroundColor:
-          effectiveTheme === "dark"
-            ? darkColors.background
-            : lightColors.background,
+        transform: [{ scale: fieldAnimations.gender }],
+        marginBottom: 20,
       }}
     >
+      <View className="flex-row items-center mb-2">
+        <Ionicons
+          name="people-outline"
+          size={20}
+          color={effectiveTheme === "dark" ? darkColors.text : lightColors.text}
+        />
+        <Text
+          className="text-sm font-medium ml-2"
+          style={{
+            color:
+              effectiveTheme === "dark"
+                ? darkColors.secondaryText
+                : lightColors.secondaryText,
+          }}
+        >
+          Gender
+        </Text>
+      </View>
+      <View className="flex-row gap-3">
+        {["male", "female"].map((gender) => (
+          <TouchableOpacity
+            key={gender}
+            onPress={() =>
+              setFormData({ ...formData, gender: gender as "male" | "female" })
+            }
+            className="flex-1"
+          >
+            <Animated.View
+              className="flex-row items-center justify-center px-4 py-3 rounded-xl"
+              style={{
+                backgroundColor:
+                  formData.gender === gender
+                    ? effectiveTheme === "dark"
+                      ? darkColors.accent
+                      : lightColors.accent
+                    : effectiveTheme === "dark"
+                    ? "#1a1a1a"
+                    : "#f3f4f6",
+                borderWidth: 1,
+                borderColor:
+                  formData.gender === gender
+                    ? effectiveTheme === "dark"
+                      ? darkColors.accent
+                      : lightColors.accent
+                    : effectiveTheme === "dark"
+                    ? darkColors.border
+                    : lightColors.border,
+                transform: [
+                  {
+                    scale: formData.gender === gender ? 1 : 0.98,
+                  },
+                ],
+              }}
+            >
+              <MaterialIcons
+                name={gender === "male" ? "male" : "female"}
+                size={20}
+                color={
+                  formData.gender === gender
+                    ? "#ffffff"
+                    : effectiveTheme === "dark"
+                    ? darkColors.text
+                    : lightColors.text
+                }
+              />
+              <Text
+                className="ml-2 capitalize font-medium"
+                style={{
+                  color:
+                    formData.gender === gender
+                      ? "#ffffff"
+                      : effectiveTheme === "dark"
+                      ? darkColors.text
+                      : lightColors.text,
+                }}
+              >
+                {gender}
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </Animated.View>
+  );
+
+  return (
+    <SafeAreaView className="flex-1">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={80}
       >
         <ScrollView
           className="flex-1 px-4"
@@ -327,73 +424,56 @@ export default function EditSellerDetailsScreen() {
               transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
             }}
           >
-            {/* Shop Banner Section */}
+            {/* Profile Picture Section */}
             <View className="items-center my-6">
               <View className="relative">
-                <TouchableOpacity
-                  onPress={handleImagePick}
-                  disabled={uploadingImage}
-                  className="w-full aspect-[16/9] rounded-xl items-center justify-center"
+                <Animated.View
                   style={{
-                    backgroundColor:
-                      effectiveTheme === "dark"
-                        ? darkColors.border
-                        : lightColors.border,
+                    transform: [{ scale: imageScaleAnim }],
                   }}
                 >
-                  {bannerUri ? (
-                    <Image
-                      source={{ uri: bannerUri }}
-                      className="w-full h-full rounded-xl"
-                      style={{ resizeMode: "cover" }}
-                    />
-                  ) : (
-                    <View className="items-center">
-                      <Ionicons
-                        name="image-outline"
-                        size={50}
-                        color={
-                          effectiveTheme === "dark"
-                            ? darkColors.secondaryText
-                            : lightColors.secondaryText
-                        }
-                      />
-                      <Text
-                        style={{
-                          color:
-                            effectiveTheme === "dark"
-                              ? darkColors.secondaryText
-                              : lightColors.secondaryText,
-                        }}
-                      >
-                        Add Shop Banner
-                      </Text>
-                    </View>
-                  )}
-                  {uploadingImage && (
-                    <View className="absolute inset-0 bg-black/50 rounded-xl justify-center items-center">
-                      <ActivityIndicator color="#ffffff" />
-                    </View>
-                  )}
                   <View
-                    className="absolute bottom-2 right-2 w-9 h-9 rounded-full items-center justify-center"
+                    className="w-28 h-28 rounded-full items-center justify-center overflow-hidden"
                     style={{
                       backgroundColor:
                         effectiveTheme === "dark"
-                          ? darkColors.text
-                          : lightColors.text,
+                          ? darkColors.accent
+                          : lightColors.accent,
                     }}
                   >
-                    <Ionicons
-                      name="camera"
-                      size={20}
-                      color={
-                        effectiveTheme === "dark"
-                          ? darkColors.background
-                          : lightColors.background
-                      }
-                    />
+                    {uploadingImage ? (
+                      <ActivityIndicator size="large" color="#ffffff" />
+                    ) : formData.photoURL ? (
+                      <Image
+                        source={{ uri: formData.photoURL }}
+                        className="w-full h-full"
+                        style={{ resizeMode: "cover" }}
+                      />
+                    ) : (
+                      <Ionicons name="person" size={50} color="#ffffff" />
+                    )}
                   </View>
+                </Animated.View>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={uploadingImage}
+                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full items-center justify-center"
+                  style={{
+                    backgroundColor:
+                      effectiveTheme === "dark"
+                        ? darkColors.text
+                        : lightColors.text,
+                  }}
+                >
+                  <Ionicons
+                    name="camera"
+                    size={20}
+                    color={
+                      effectiveTheme === "dark"
+                        ? darkColors.background
+                        : lightColors.background
+                    }
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -401,144 +481,110 @@ export default function EditSellerDetailsScreen() {
             {/* Form Fields */}
             <View className="mb-6">
               <InputField
-                label="Shop Name"
-                value={formData.shopName}
+                label="Full Name"
+                value={formData.fullName}
                 onChangeText={(text) =>
-                  setFormData({ ...formData, shopName: text })
+                  setFormData({ ...formData, fullName: text })
                 }
-                placeholder="Enter your shop name"
-                fieldKey="shopName"
-                icon="storefront-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("shopName");
-                  animateFieldFocus("shopName", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("shopName", false);
-                }}
-                animation={fieldAnimations.shopName}
+                placeholder="Enter your full name"
+                fieldKey="fullName"
+                icon="person-outline"
               />
 
               <InputField
-                label="Shop Bio"
-                value={formData.bio}
-                onChangeText={(text) => setFormData({ ...formData, bio: text })}
-                placeholder="Tell customers about your shop"
-                fieldKey="bio"
-                icon="document-text-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("bio");
-                  animateFieldFocus("bio", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("bio", false);
-                }}
-                animation={fieldAnimations.bio}
-                multiline
+                label="Email"
+                value={formData.email}
+                placeholder="Your email address"
+                fieldKey="email"
+                editable={false}
+                icon="mail-outline"
               />
 
-              <Text
-                className="text-lg font-bold mb-3"
+              <GenderSelector />
+
+              {/* Date of Birth */}
+              <Animated.View
                 style={{
-                  color:
-                    effectiveTheme === "dark"
-                      ? darkColors.text
-                      : lightColors.text,
+                  transform: [{ scale: fieldAnimations.dob }],
+                  marginBottom: 20,
                 }}
               >
-                Shop Address
-              </Text>
+                <View className="flex-row items-center mb-2">
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={
+                      effectiveTheme === "dark"
+                        ? darkColors.text
+                        : lightColors.text
+                    }
+                  />
+                  <Text
+                    className="text-sm font-medium ml-2"
+                    style={{
+                      color:
+                        effectiveTheme === "dark"
+                          ? darkColors.secondaryText
+                          : lightColors.secondaryText,
+                    }}
+                  >
+                    Date of Birth
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setShowDatePicker(true)}
+                  className="px-4 py-3 rounded-xl flex-row justify-between items-center"
+                  style={{
+                    backgroundColor:
+                      effectiveTheme === "dark" ? "#1a1a1a" : "#f3f4f6",
+                    borderWidth: 1,
+                    borderColor:
+                      effectiveTheme === "dark"
+                        ? darkColors.border
+                        : lightColors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: formData.dob
+                        ? effectiveTheme === "dark"
+                          ? darkColors.text
+                          : lightColors.text
+                        : effectiveTheme === "dark"
+                        ? "#666"
+                        : "#999",
+                    }}
+                  >
+                    {formData.dob
+                      ? formData.dob.toLocaleDateString()
+                      : "Select your date of birth"}
+                  </Text>
+                  <Ionicons
+                    name="calendar"
+                    size={20}
+                    color={
+                      effectiveTheme === "dark"
+                        ? darkColors.text
+                        : lightColors.text
+                    }
+                  />
+                </Pressable>
+              </Animated.View>
 
-              <InputField
-                label="Street Address"
-                value={formData.street}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, street: text })
-                }
-                placeholder="e.g., 123 Main St"
-                fieldKey="address"
-                icon="location-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("address");
-                  animateFieldFocus("address", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("address", false);
-                }}
-                animation={fieldAnimations.address}
-              />
-              <InputField
-                label="City"
-                value={formData.city}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, city: text })
-                }
-                placeholder="e.g., Johannesburg"
-                fieldKey="address"
-                icon="map-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("address");
-                  animateFieldFocus("address", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("address", false);
-                }}
-                animation={fieldAnimations.address}
-              />
-              <InputField
-                label="Province"
-                value={formData.province}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, province: text })
-                }
-                placeholder="e.g., Gauteng"
-                fieldKey="address"
-                icon="map-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("address");
-                  animateFieldFocus("address", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("address", false);
-                }}
-                animation={fieldAnimations.address}
-              />
-              <InputField
-                label="Postal Code"
-                value={formData.postalCode}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, postalCode: text })
-                }
-                placeholder="e.g., 2000"
-                fieldKey="address"
-                icon="mail-outline"
-                effectiveTheme={effectiveTheme}
-                focusedField={focusedField}
-                onFocus={() => {
-                  setFocusedField("address");
-                  animateFieldFocus("address", true);
-                }}
-                onBlur={() => {
-                  setFocusedField(null);
-                  animateFieldFocus("address", false);
-                }}
-                animation={fieldAnimations.address}
-              />
+              {showDatePicker && (
+                <DateTimePicker
+                  value={formData.dob || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      setFormData({ ...formData, dob: selectedDate });
+                    }
+                  }}
+                  maximumDate={new Date()}
+                />
+              )}
             </View>
 
             {/* Save Button */}
@@ -554,15 +600,19 @@ export default function EditSellerDetailsScreen() {
                     effectiveTheme === "dark"
                       ? darkColors.accent
                       : lightColors.accent,
+                  transform: [
+                    {
+                      scale: loading || uploadingImage ? 0.98 : 1,
+                    },
+                  ],
                   opacity: loading || uploadingImage ? 0.7 : 1,
-                  transform: [{ scale: loading ? 0.98 : 1 }],
                 }}
               >
                 {loading ? (
                   <ActivityIndicator color="#ffffff" />
                 ) : (
                   <Text className="text-white font-semibold text-lg">
-                    Save Shop Details
+                    Save Changes
                   </Text>
                 )}
               </Animated.View>

@@ -69,25 +69,26 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         if (docSnap.exists()) {
           const data = docSnap.data();
 
-          // Assuming the fields in your document are the categories
-          // e.g., { "Electronics": true, "Clothing": true, ... }
-          // We transform the object's keys into an array.
-          const categoryList = Object.keys(data).map((categoryName) => ({
-            id: categoryName.toLowerCase(), // e.g., 'electronics'
-            name: categoryName, // e.g., 'Electronics'
-          }));
+          if (Array.isArray(data.Categories)) {
+            const categoryList = data.Categories.map(
+              (categoryName: string) => ({
+                id: categoryName.toLowerCase(),
+                name: categoryName,
+              })
+            );
 
-          // Sort alphabetically and add the "All" category
-          categoryList.sort((a, b) => a.name.localeCompare(b.name));
-          setCategories([{ id: "All", name: "All" }, ...categoryList]);
+            // Sort alphabetically and add "All"
+            categoryList.sort((a, b) => a.name.localeCompare(b.name));
+            setCategories([{ id: "all", name: "All" }, ...categoryList]);
+          } else {
+            console.error("categories is not an array in MetaData!");
+          }
         } else {
           console.error("MetaData document not found!");
-          // Handle case where document doesn't exist
         }
       },
       (err: any) => {
         console.error("Failed to fetch categories:", err);
-        // Your existing fallback logic
         setCategories([
           { name: "electronics", id: "electronics" },
           { name: "clothing", id: "clothing" },

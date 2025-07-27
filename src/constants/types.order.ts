@@ -21,4 +21,5 @@ export interface Order {
   shippingAddress: Address;
   createdAt: Timestamp;
   paymentReference?: string;
+  reviewed?: boolean;
 }

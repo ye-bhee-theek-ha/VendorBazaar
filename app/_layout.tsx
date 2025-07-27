@@ -25,18 +25,27 @@ import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
 import { setStatusBarStyle, StatusBar } from "expo-status-bar";
 import { darkColors, lightColors } from "@/src/constants/Colors";
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from "expo-router";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+
+export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: "(login)",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const AppFonts = {
   SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),

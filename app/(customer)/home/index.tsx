@@ -7,9 +7,11 @@ import {
   ScrollView,
   Image,
   TextInput,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { useProducts } from "@/src/context/ProductContext";
 import { Product } from "@/src/constants/types.product";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +20,7 @@ import { useMemo } from "react";
 import { useTheme } from "@/src/context/ThemeContext";
 import { lightColors, darkColors } from "@/src/constants/Colors";
 import { ErrorState, ProductCardSkeleton } from "@/src/helpers/skeletons";
+import { LinearGradient } from "expo-linear-gradient";
 
 export type ListItem = Product | { pid: string; isPlaceholder: true };
 
@@ -48,10 +51,16 @@ const CategoryFilters = ({
               backgroundColor:
                 selectedCategory === category.name
                   ? colors.accent
-                  : colors.card + "40",
-              borderColor: colors.border + "60",
+                  : colors.card + "80",
+              borderColor: colors.border + "90",
+              borderWidth: 1,
+              boxShadow:
+                effectiveTheme === "dark"
+                  ? "0 0px 1px rgba(255, 255, 255, 0.5)"
+                  : "0 0px 1px rgba(0, 0, 0, 0.2)",
+              overflowY: "visible",
             }}
-            className="px-5 py-2.5 rounded-2xl mr-3 border"
+            className="px-5 py-2.5 my-1 rounded-2xl mr-3 border"
           >
             <Text
               style={{
@@ -60,7 +69,7 @@ const CategoryFilters = ({
               }}
               className="font-normal text-medium"
             >
-              {category.name}
+              {category.name.trim() || "All"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -165,42 +174,58 @@ const ListFooter = ({
   return <View className="h-20" />;
 };
 
-const SearchAndFilter = ({
-  effectiveTheme,
-}: {
-  effectiveTheme: "light" | "dark";
-}) => {
-  const colors = effectiveTheme === "dark" ? darkColors : lightColors;
-  return (
-    <View className="flex-row items-center p-4 pt-2 gap-x-3">
-      <View
-        style={{
-          backgroundColor: colors.card + "60",
-          borderColor: colors.border + "80",
-        }}
-        className="flex-1 flex-row items-center border rounded-lg px-3"
-      >
-        <MaterialCommunityIcons
-          name="archive-search"
-          size={20}
-          color={colors.placeholder}
-        />
-        <TextInput
-          placeholder="Search for clothes..."
-          className="flex-1 h-12 ml-2 text-base"
-          style={{ color: colors.text }}
-          placeholderTextColor={colors.placeholder}
-        />
-      </View>
-      <TouchableOpacity
-        style={{ backgroundColor: colors.accent }}
-        className="p-3 rounded-lg"
-      >
-        <Ionicons name="search" size={24} color="white" />
-        {/* //TODO add onpress here */}
-      </TouchableOpacity>
-    </View>
-  );
+// const SearchAndFilter = ({
+//   effectiveTheme,
+// }: {
+//   effectiveTheme: "light" | "dark";
+// }) => {
+//   const colors = effectiveTheme === "dark" ? darkColors : lightColors;
+//   return (
+//     <View className="flex-row items-center p-4 pt-2 gap-x-3">
+//       <View
+//         style={{
+//           backgroundColor: colors.card + "60",
+//           borderColor: colors.border + "80",
+//         }}
+//         className="flex-1 flex-row items-center border rounded-lg px-3"
+//       >
+//         <MaterialCommunityIcons
+//           name="archive-search"
+//           size={20}
+//           color={colors.placeholder}
+//         />
+//         <TextInput
+//           placeholder="Search for clothes..."
+//           className="flex-1 h-12 ml-2 text-base"
+//           style={{ color: colors.text }}
+//           placeholderTextColor={colors.placeholder}
+//         />
+//       </View>
+//       <TouchableOpacity
+//         style={{ backgroundColor: colors.accent }}
+//         className="p-3 rounded-lg"
+//       >
+//         <Ionicons name="search" size={24} color="white" />
+//       </TouchableOpacity>
+//     </View>
+//   );
+// };
+
+import * as Location from "expo-location";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+
+const getUserLocation = async () => {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Permission denied", "Location permission is required");
+    return null;
+  }
+
+  const location = await Location.getCurrentPositionAsync({});
+  return {
+    latitude: location.coords.latitude,
+    longitude: location.coords.longitude,
+  };
 };
 
 export default function CustomerHomeScreen() {
@@ -228,10 +253,8 @@ export default function CustomerHomeScreen() {
 
   return (
     <View style={{ flex: 1 }} className="flex justify-start mt-2">
-      <Link href="https://expo.dev">Open a URL</Link>
-
       <FlatList
-        data={loading ? [] : products}
+        data={loading ? [] : dataForList}
         keyExtractor={(item, index) => `${item.pid}-${index}`}
         numColumns={2}
         renderItem={({ item }) => {
@@ -242,7 +265,44 @@ export default function CustomerHomeScreen() {
         }}
         ListHeaderComponent={
           <>
-            <SearchAndFilter effectiveTheme={effectiveTheme} />
+            {/* <SearchAndFilter effectiveTheme={effectiveTheme} /> */}
+            <TouchableOpacity
+              className="relative flex justify-center mb-4 w-[85%] mx-auto rounded-3xl overflow-hidden"
+              style={{ position: "relative" }}
+              onPress={() => router.push("https://expo.dev")}
+            >
+              <Text
+                className="absolute text-white text-[30px] font-MuseoModerno_SemiBold bottom-2 left-4"
+                style={{
+                  position: "absolute",
+                  bottom: 8,
+                  left: 16,
+                  zIndex: 2,
+                }}
+              >
+                Become a Seller
+              </Text>
+              <LinearGradient
+                colors={["#242d1690", "transparent", "#242d1690"]}
+                start={{ x: 0.2, y: 1 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 1,
+                }}
+              />
+              <Image
+                source={require("@/assets/images/BecomeSellerPoster1.png")}
+                className="w-full h-32 mx-auto object-cover"
+                style={{
+                  zIndex: 0,
+                }}
+              />
+            </TouchableOpacity>
             <CategoryFilters effectiveTheme={effectiveTheme} />
           </>
         }
@@ -250,7 +310,7 @@ export default function CustomerHomeScreen() {
           loading ? (
             <View style={{ flex: 1 }}>
               <FlatList
-                data={Array(6).fill(0)} // Render 6 skeleton items
+                data={Array(6).fill(0)}
                 numColumns={2}
                 keyExtractor={(_, index) => `skeleton-${index}`}
                 renderItem={() => (
@@ -284,15 +344,31 @@ export default function CustomerHomeScreen() {
         onEndReachedThreshold={0.7}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 8 }}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchProducts} />
+        }
       />
-      {/* {loading && (
-        <View
-          className="absolute inset-0 justify-center items-center"
-          style={{ backgroundColor: `${colors.background}99` }}
-        >
-          <ActivityIndicator size="large" color={colors.accent} />
-        </View>
-      )} */}
     </View>
   );
+
+  // return (
+  //   <View className="bg-white">
+  //     <Text>Shop Location</Text>
+  //     <MapView
+  //       style={{ flex: 1, width: "100%", height: "100%" }}
+  //       initialRegion={{
+  //         latitude: -26.2041,
+  //         longitude: 28.0473,
+  //         latitudeDelta: 0.0922,
+  //         longitudeDelta: 0.0421,
+  //       }}
+  //     >
+  //       <Marker
+  //         coordinate={{ latitude: -26.2041, longitude: 28.0473 }}
+  //         title="Shop Location"
+  //         description="123 Main St, Johannesburg"
+  //       />
+  //     </MapView>
+  //   </View>
+  // );
 }

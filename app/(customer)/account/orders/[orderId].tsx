@@ -15,7 +15,6 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { ColorPalette, darkColors, lightColors } from "@/src/constants/Colors";
 import { formatTimestamp } from "@/src/helpers/formatDate";
 import { ErrorState } from "@/src/helpers/skeletons";
-import { Order } from "@/src/constants/types.order";
 import { CartItem } from "@/src/constants/types.product";
 
 // Memoized component for individual items in the order list
@@ -99,14 +98,6 @@ export default function OrderDetailsScreen() {
       className="flex-1"
       style={{ backgroundColor: colors.background }}
     >
-      <Stack.Screen
-        options={{
-          title: `Order #${order.id.slice(-6)}`,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: "MuseoModerno_Bold" },
-        }}
-      />
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         {/* Header Section */}
         <View
@@ -266,23 +257,47 @@ export default function OrderDetailsScreen() {
         </View>
 
         {/* Track Order Button */}
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: `/(customer)/account/orders/track`,
-              params: { orderId: order.id },
-            })
-          }
-          className="mx-4 mt-6 py-4 rounded-lg items-center justify-center"
-          style={{ backgroundColor: colors.accent }}
-        >
-          <Text
-            className="text-lg font-MuseoModerno_Bold"
-            style={{ color: "white" }}
+        {order.status == "Completed" ? (
+          order.reviewed ? (
+            <></>
+          ) : (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: `/(customer)/account/orders/leave-review`,
+                  params: { orderId: order.id },
+                })
+              }
+              className="mx-4 mt-6 py-4 rounded-lg items-center justify-center"
+              style={{ backgroundColor: colors.accent }}
+            >
+              <Text
+                className="text-lg font-MuseoModerno_Bold"
+                style={{ color: "white" }}
+              >
+                Leave a Review
+              </Text>
+            </TouchableOpacity>
+          )
+        ) : (
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: `/(customer)/account/orders/track`,
+                params: { orderId: order.id },
+              })
+            }
+            className="mx-4 mt-6 py-4 rounded-lg items-center justify-center"
+            style={{ backgroundColor: colors.accent }}
           >
-            Track Order
-          </Text>
-        </TouchableOpacity>
+            <Text
+              className="text-lg font-MuseoModerno_Bold"
+              style={{ color: "white" }}
+            >
+              Track Order
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

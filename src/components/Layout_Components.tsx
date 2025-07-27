@@ -10,7 +10,7 @@ export default function HeaderRightIcons() {
 
   return (
     <View className="flex-row items-center">
-      <TouchableOpacity
+      {/* <TouchableOpacity
         className="mr-4"
         onPress={() => router.push("/notifications")}
       >
@@ -19,7 +19,7 @@ export default function HeaderRightIcons() {
           size={28}
           color={effectiveTheme === "dark" ? darkColors.text : lightColors.text}
         />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
       <MessagesIcon />
     </View>
   );

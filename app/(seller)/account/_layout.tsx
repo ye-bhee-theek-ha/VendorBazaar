@@ -40,20 +40,21 @@ export default function AccountStackLayout() {
             />
           </TouchableOpacity>
         ),
-        headerRight: () => (
-          <TouchableOpacity
-            className="mr-4"
-            onPress={() => router.push("/notifications")}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={
-                effectiveTheme === "dark" ? darkColors.text : lightColors.text
-              }
-            />
-          </TouchableOpacity>
-        ),
+        // TODO: Notification-btn
+        // headerRight: () => (
+        //   <TouchableOpacity
+        //     className="mr-4"
+        //     onPress={() => router.push("/notifications")}
+        //   >
+        //     <Ionicons
+        //       name="notifications-outline"
+        //       size={24}
+        //       color={
+        //         effectiveTheme === "dark" ? darkColors.text : lightColors.text
+        //       }
+        //     />
+        //   </TouchableOpacity>
+        // ),
       }}
       initialRouteName="index"
     >
@@ -68,6 +69,10 @@ export default function AccountStackLayout() {
       <Stack.Screen
         name="payment-methods"
         options={{ title: "Payment Methods" }}
+      />
+      <Stack.Screen
+        name="send-notifications.tsx"
+        options={{ title: "Send Notifications" }}
       />
     </Stack>
   );

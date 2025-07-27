@@ -29,6 +29,7 @@ export default function AccountStackLayout() {
         contentStyle: {
           backgroundColor: "transparent",
         },
+        animation: "ios_from_right",
         headerLeft: () => (
           <TouchableOpacity onPress={() => router.back()} className="mx-4">
             <Ionicons
@@ -40,20 +41,21 @@ export default function AccountStackLayout() {
             />
           </TouchableOpacity>
         ),
-        headerRight: () => (
-          <TouchableOpacity
-            className="mr-4"
-            onPress={() => router.push("/notifications")}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={
-                effectiveTheme === "dark" ? darkColors.text : lightColors.text
-              }
-            />
-          </TouchableOpacity>
-        ),
+        // TODO: Notification-btn
+        // headerRight: () => (
+        //   <TouchableOpacity
+        //     className="mr-4"
+        //     onPress={() => router.push("/notifications")}
+        //   >
+        //     <Ionicons
+        //       name="notifications-outline"
+        //       size={24}
+        //       color={
+        //         effectiveTheme === "dark" ? darkColors.text : lightColors.text
+        //       }
+        //     />
+        //   </TouchableOpacity>
+        // ),
       }}
       initialRouteName="index"
     >
@@ -66,6 +68,10 @@ export default function AccountStackLayout() {
       <Stack.Screen name="orders" options={{ title: "Orders" }} />
       <Stack.Screen name="details" options={{ title: "My Details" }} />
       <Stack.Screen name="address-book" options={{ title: "Address Book" }} />
+      <Stack.Screen
+        name="following-sellers"
+        options={{ title: "Following Sellers" }}
+      />
     </Stack>
   );
 }

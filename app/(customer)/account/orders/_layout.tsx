@@ -14,6 +14,18 @@ export default function AccountStackLayout() {
     <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="track" options={{ title: "Track Order" }} />
+      <Stack.Screen
+        name="leave-review"
+        options={{
+          title: "Leave a Review",
+          presentation: "modal",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="close" size={24} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     </Stack>
   );
 }

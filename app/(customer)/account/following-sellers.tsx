@@ -468,8 +468,7 @@ export default function FollowingSellersScreen() {
                       : lightColors.secondaryText,
                 }}
               >
-                Following {sellers.length} seller
-                {sellers.length !== 1 ? "s" : ""}
+                Following {sellers.length} sellers{sellers.length !== 1 ? "s" : ""}
               </Text>
               {sellers.map((seller) => (
                 <SellerCard key={seller.id} seller={seller} />

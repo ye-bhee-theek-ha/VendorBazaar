@@ -3,10 +3,12 @@ import React from "react";
 import Svg, { Path } from "react-native-svg";
 import Spinner from "../components/spinner";
 import CustomText from "../components/Text";
+import { StatusBar } from "expo-status-bar";
 
 const LoadingScreen = () => {
   return (
     <View className="w-screen h-screen flex items-center justify-center bg-primary relative ">
+      <StatusBar style="light" backgroundColor="transparent" translucent />
       <Image
         source={require("@/assets/images/loading.png")}
         className="absolute top-0 w-full h-full"

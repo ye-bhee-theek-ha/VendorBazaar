@@ -35,7 +35,7 @@ const OrderCard = React.memo(
     const { user } = useAuth();
 
     const isCompleted = useMemo(
-      () => order.status === "Delivered" || order.status === "Completed",
+      () => order.status === "Completed",
       [order.status]
     );
 
@@ -109,29 +109,31 @@ const OrderCard = React.memo(
               >
                 {firstItem.name}
               </Text>
-              <View
-                className={`px-2 py-0.5 border rounded-full`}
-                style={{
-                  backgroundColor: isCompleted
-                    ? `${colors.accent}20`
-                    : `${colors.accent}20`,
-                  borderColor:
-                    effectiveTheme === "dark"
-                      ? colors.border
-                      : colors.background,
-                }}
-              >
-                <Text
-                  className={`text-extra_small font-MuseoModerno_Bold capitalize`}
+              {!isCompleted && (
+                <View
+                  className={`px-2 py-0.5 border rounded-full`}
                   style={{
-                    color: isCompleted
-                      ? colors.secondaryText
-                      : colors.secondaryText,
+                    backgroundColor: isCompleted
+                      ? `${colors.accent}20`
+                      : `${colors.accent}20`,
+                    borderColor:
+                      effectiveTheme === "dark"
+                        ? colors.border
+                        : colors.background,
                   }}
                 >
-                  {order.status}
-                </Text>
-              </View>
+                  <Text
+                    className={`text-extra_small font-MuseoModerno_Bold capitalize`}
+                    style={{
+                      color: isCompleted
+                        ? colors.secondaryText
+                        : colors.secondaryText,
+                    }}
+                  >
+                    {order.status}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {order.items.length > 1 && (
@@ -152,30 +154,75 @@ const OrderCard = React.memo(
           </View>
 
           <View className="flex-row items-end gap-2 h-full">
-            <TouchableOpacity
-              onPress={() => {
-                router.push({
-                  pathname: `/(customer)/account/orders/track`,
-                  params: { orderId: order.id },
-                });
-              }}
-              className={`px-4 py-1 border rounded-lg`}
-              style={{
-                backgroundColor: isCompleted
-                  ? `${colors.accent}90`
-                  : `${colors.accent}90`,
-                borderColor: colors.accent,
-              }}
-            >
-              <Text
-                className={`text-medium font-MuseoModerno_Bold capitalize`}
+            {isCompleted ? (
+              order.reviewed ? (
+                <View
+                  className="px-3 py-1 rounded-full"
+                  style={{ backgroundColor: `${colors.accent}20` }}
+                >
+                  <Text
+                    className={`text-extra_small font-MuseoModerno_Bold capitalize`}
+                    style={{
+                      color: colors.secondaryText,
+                    }}
+                  >
+                    Reviewed
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    router.push({
+                      pathname: `/(customer)/account/orders/leave-review`,
+                      params: { orderId: order.id },
+                    });
+                  }}
+                  className={`px-4 py-1 border rounded-lg`}
+                  style={{
+                    backgroundColor: isCompleted
+                      ? `${colors.accent}90`
+                      : `${colors.accent}90`,
+                    borderColor: colors.accent,
+                  }}
+                >
+                  <Text
+                    className={`text-medium font-MuseoModerno_Bold capitalize`}
+                    style={{
+                      color:
+                        effectiveTheme === "dark" ? colors.text : colors.text,
+                    }}
+                  >
+                    Leave a Review
+                  </Text>
+                </TouchableOpacity>
+              )
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  router.push({
+                    pathname: `/(customer)/account/orders/track`,
+                    params: { orderId: order.id },
+                  });
+                }}
+                className={`px-4 py-1 border rounded-lg`}
                 style={{
-                  color: effectiveTheme === "dark" ? colors.text : colors.text,
+                  backgroundColor: isCompleted
+                    ? `${colors.accent}90`
+                    : `${colors.accent}90`,
+                  borderColor: colors.accent,
                 }}
               >
-                Track Order
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  className={`text-medium font-MuseoModerno_Bold capitalize`}
+                  style={{
+                    color:
+                      effectiveTheme === "dark" ? colors.text : colors.text,
+                  }}
+                >
+                  Track Order
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>

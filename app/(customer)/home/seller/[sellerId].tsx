@@ -231,7 +231,7 @@ const AboutTab = ({
 // --- Main Screen ---
 export default function SellerProfileScreen() {
   const { sellerId } = useLocalSearchParams<{ sellerId: string }>();
-  const { user, toggleFollowSeller } = useAuth();
+  const { user, toggleFollowSeller, FollowingLoading } = useAuth();
 
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -424,10 +424,30 @@ export default function SellerProfileScreen() {
   const renderHeader = () => (
     <View className="">
       <View className="w-full items-center mt-4">
-        <Image
-          source={{ uri: seller?.shopBannerUrl }}
-          className="w-[95%] h-40 rounded-lg"
-        />
+        {seller?.shopBannerUrl ? (
+          <Image
+            source={{ uri: seller?.shopBannerUrl }}
+            className="w-[95%] h-40 rounded-lg"
+          />
+        ) : (
+          <View
+            className="w-[90%] h-40 rounded-lg items-center justify-center"
+            style={{
+              backgroundColor:
+                effectiveTheme === "dark"
+                  ? darkColors.card + "50"
+                  : lightColors.card + "50",
+            }}
+          >
+            <Ionicons
+              name="storefront-outline"
+              size={50}
+              color={
+                effectiveTheme === "dark" ? darkColors.text : lightColors.text
+              }
+            />
+          </View>
+        )}
       </View>
 
       <View
@@ -534,6 +554,7 @@ export default function SellerProfileScreen() {
                   : lightColors.accent,
             }}
             onPress={() => toggleFollowSeller(sellerId.trim())}
+            disabled={FollowingLoading}
           >
             <Text
               className="text-white text-center font-bold"
@@ -544,9 +565,13 @@ export default function SellerProfileScreen() {
                     : lightColors.background,
               }}
             >
-              {user?.FollowingSellersIds.includes(sellerId)
-                ? "Unfollow"
-                : "Follow"}
+              {FollowingLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : user?.FollowingSellersIds.includes(sellerId) ? (
+                "Unfollow"
+              ) : (
+                "Follow"
+              )}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

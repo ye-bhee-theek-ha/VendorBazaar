@@ -102,7 +102,7 @@ export function SellerProductProvider({
           name: productData.name,
           description: productData.description,
           price: productData.price,
-          category: productData.category,
+          category: productData.category.toLowerCase(),
           stock_quantity: productData.stockQuantity,
           images_url: productData.imagesUrl,
           options: productData.options || [],

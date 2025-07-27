@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import {
   collection,
@@ -21,13 +22,20 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   documentId,
+  getDoc,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
+import * as Notifications from "expo-notifications";
 import { db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
 import { Notification } from "../constants/types.user";
+import { registerForPushNotificationsAsync } from "@/src/utils/registerForPushNotificationsAsync";
+import { Platform } from "react-native";
 
 // --- Interfaces ---
 interface NotificationContextType {
+  // Firestore notifications
   notifications: Notification[];
   loading: boolean;
   loadingMore: boolean;
@@ -37,6 +45,12 @@ interface NotificationContextType {
   loadMoreNotifications: () => Promise<void>;
   markAllAsRead: () => Promise<void>;
   markAsRead: ({ id }: { id: string }) => Promise<void>;
+
+  // Push notifications
+  expoPushToken: string | null;
+  pushNotification: Notifications.Notification | null;
+  pushNotificationError: Error | null;
+  tokenSaving: boolean;
 }
 
 // --- Context Definition ---
@@ -52,7 +66,9 @@ export function NotificationProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const { user, ReFetchUser } = useAuth();
+
+  // Firestore notification states
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -62,6 +78,131 @@ export function NotificationProvider({
     useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
+  // Push notification states
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [pushNotification, setPushNotification] =
+    useState<Notifications.Notification | null>(null);
+  const [pushNotificationError, setPushNotificationError] =
+    useState<Error | null>(null);
+  const [tokenSaving, setTokenSaving] = useState(false);
+
+  // Push notification listeners
+  const notificationListener = useRef<Notifications.EventSubscription | null>(
+    null
+  );
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+  const savePushTokenToDatabase = async (token: string) => {
+    if (!user || !token) {
+      console.log("Cannot save token: No user or token");
+      return;
+    }
+
+    setTokenSaving(true);
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+
+      // First, check if the token is already saved to avoid unnecessary writes
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const existingToken = userData.pushToken;
+
+        if (existingToken === token) {
+          console.log("Push token already exists in database, skipping update");
+          setTokenSaving(false);
+          return;
+        }
+      }
+
+      // Update user document with new push token
+      await updateDoc(userDocRef, {
+        pushToken: token,
+        pushTokenUpdatedAt: serverTimestamp(),
+        platform: Platform.OS,
+      });
+
+      console.log("Push token saved to database successfully");
+
+      // Refresh user data to sync with AuthContext
+      await ReFetchUser();
+    } catch (error) {
+      console.error(" Failed to save push token to database:", error);
+      setPushNotificationError(new Error("Failed to save push token"));
+    } finally {
+      setTokenSaving(false);
+    }
+  };
+
+  // Initialize push notifications and save token
+  useEffect(() => {
+    if (!user) {
+      console.log("No user logged in, skipping push notification setup");
+      return;
+    }
+
+    const setupPushNotifications = async () => {
+      try {
+        console.log("Setting up push notifications for user:", user.email);
+
+        // Register for push notifications and get token
+        const token = await registerForPushNotificationsAsync();
+        setExpoPushToken(token);
+        console.log("Expo push token received:", token);
+
+        // Save token to database
+        await savePushTokenToDatabase(token);
+      } catch (error) {
+        console.error("Push notification setup failed:", error);
+        setPushNotificationError(error as Error);
+      }
+    };
+
+    setupPushNotifications();
+
+    // Set up notification listeners
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        console.log("Push Notification Received: ", notification);
+        setPushNotification(notification);
+
+        // Optionally refresh Firestore notifications if the push notification
+        // indicates new data is available
+        const data = notification.request.content.data;
+        if (data?.refreshNotifications) {
+          fetchInitialNotifications();
+        }
+      });
+
+    // Handle notification responses (when user taps notification)
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("Push Notification Response: ", response);
+
+        // Handle navigation or other actions based on notification data
+        const data = response.notification.request.content.data;
+        if (data?.notificationId) {
+          // Mark specific notification as read
+          markAsRead({ id: data.notificationId as string });
+        }
+
+        // Clear the notification from state
+        setPushNotification(null);
+      });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(
+          notificationListener.current
+        );
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, [user]);
+
+  // Monitor unread count for Firestore notifications
   useEffect(() => {
     if (!user) {
       setUnreadCount(0);
@@ -102,8 +243,8 @@ export function NotificationProvider({
       );
 
       const documentSnapshots = await getDocs(q);
-      console.log("notifications: ", documentSnapshots.size);
-      console.log(user.email);
+      console.log("Firestore notifications: ", documentSnapshots.size);
+
       const notificationList = documentSnapshots.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -206,8 +347,6 @@ export function NotificationProvider({
       item.id == id ? { ...item, read: true } : item
     );
 
-    console.log("Updated notifications:", updatedNotifications);
-
     setNotifications(updatedNotifications);
 
     try {
@@ -218,8 +357,6 @@ export function NotificationProvider({
         where("read", "==", false)
       );
       const snapshot = await getDocs(q);
-
-      console.log(snapshot.docs.length, "notifications found to update");
 
       const batch = writeBatch(db);
       snapshot.docs.forEach((doc) => {
@@ -233,6 +370,7 @@ export function NotificationProvider({
   };
 
   const value = {
+    // Firestore notifications
     notifications,
     loading,
     loadingMore,
@@ -242,6 +380,12 @@ export function NotificationProvider({
     loadMoreNotifications,
     markAllAsRead,
     markAsRead,
+
+    // Push notifications
+    expoPushToken,
+    pushNotification,
+    pushNotificationError,
+    tokenSaving,
   };
 
   return (

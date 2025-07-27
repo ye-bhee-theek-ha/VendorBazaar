@@ -10,6 +10,7 @@ export default {
     "scheme": "vendorbazaar",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "owner": "aleeabdullah",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -19,7 +20,13 @@ export default {
       "supportsTablet": true,
       "bundleIdentifier": "com.aleeabdullah.SafeBuyAfrica",
       "googleServicesFile": process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist",
-      "associatedDomains": ["applinks:your-domain.com"]
+      "associatedDomains": ["applinks:your-domain.com"],
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to show nearby sellers and track deliveries."
+      },
+      "config": {
+        "googleMapsApiKey": process.env.MAP_API_KEY
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -35,6 +42,15 @@ export default {
       "package": "com.aleeabdullah.SafeBuyAfrica",
       "googleServicesFile": process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": process.env.MAP_API_KEY
+        }
+      }
     },
     "web": {
       "bundler": "metro",
